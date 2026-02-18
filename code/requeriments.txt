@@ -1,0 +1,15 @@
+langchain
+langchain-openai
+langgraph
+qdrant-client
+openai
+python-dotenv
+tiktoken
+pypdf
+unstructured
+pdfminer.six
+rank-bm25
+streamlit
+numpy
+pandas
+loguru
