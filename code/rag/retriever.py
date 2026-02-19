@@ -1,5 +1,5 @@
 from config.settings import settings
-from langchain_comunity.vectorstores import QdrantVectorStore
+from langchain_community.vectorstores import QdrantVectorStore
 from qdrant_client import QdrantClient
 from rag.embeddings import get_embeddings
 
