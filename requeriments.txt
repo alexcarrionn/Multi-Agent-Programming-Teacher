@@ -13,3 +13,4 @@ streamlit
 numpy
 pandas
 loguru
+sentence-transformers
