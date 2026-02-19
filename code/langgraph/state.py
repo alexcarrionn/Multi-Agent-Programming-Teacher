@@ -30,9 +30,9 @@ class AgentState(TypedDict):
     #Control de flujo entre agentes
     agente_actual: Optional[str]
     necesita_demostraciones: Optional[bool]
-    necesita_evaluacion: Optional[bool]
+    necesita_feedback: Optional[bool]
     finalizado: Optional[bool]
-
+    error: Optional[str]
 
 
 
