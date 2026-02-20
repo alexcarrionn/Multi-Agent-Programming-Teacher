@@ -1,7 +1,9 @@
 langchain
 langchain-community
 langchain-experimental
+langchain-text-splitters
 langchain-openai
+langchain-huggingface
 langgraph
 qdrant-client
 openai
@@ -16,5 +18,7 @@ numpy
 pandas
 loguru
 sentence-transformers
+"transformers<5.0" \
+"huggingface-hub<1.0" \
 passlib
 sqlalchemy

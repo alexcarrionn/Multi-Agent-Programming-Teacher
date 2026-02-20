@@ -1,8 +1,8 @@
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_experimental.text_splitter import SemanticChunker
-from langchain_community.vectorstores import QdrantVectorStore
+from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchValue
+from qdrant_client.models import FieldCondition, Filter, MatchValue, PayloadSchemaType
 from rag.embeddings import get_embeddings
 from config.settings import settings
 
@@ -36,6 +36,18 @@ def index_documents(text: str, source_id: str = "default", replace_existing_sour
     )
     #vamos a comprobar si la coleccion existe
     collection_exists = client.collection_exists(settings.QDRANT_COLLECTION)
+
+    # Aseguramos que el índice de payload exista antes de cualquier operación de filtrado
+    if collection_exists:
+        try:
+            client.create_payload_index(
+                collection_name=settings.QDRANT_COLLECTION,
+                field_name="metadata.source_id",
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+        except Exception:
+            pass  # El índice ya existe
+
     #si la coleccion existe y tenemos que reemplazarla, eliminamos los puntos que correspondan a la fuente que estamos indexando
     if collection_exists and replace_existing_source:
         client.delete(
@@ -52,18 +64,28 @@ def index_documents(text: str, source_id: str = "default", replace_existing_sour
     # creamos el vectorstore (QDrant Cloud) con el modelo open source
     #si la coleccion no existe la creamos y añadimos los documentos
     if not collection_exists:
+        # Crea la colección y añade los primeros documentos
         QdrantVectorStore.from_documents(
-            semantic_chunks,
+            documents=semantic_chunks,
             embedding=embeddings_open_source,
-            client=client,
+            url=settings.QDRANT_URL,
+            api_key=settings.QDRANT_API_KEY,
             collection_name=settings.QDRANT_COLLECTION,
         )
+        # Creamos un índice en el campo metadata.source_id para poder filtrar por fuente
+        client.create_payload_index(
+            collection_name=settings.QDRANT_COLLECTION,
+            field_name="metadata.source_id",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
         return
-    #si existe simplemente añadimos los nuevos documentos a la coleccion existente
-    vectorstore = QdrantVectorStore(
-        client=client,
-        embedding=embeddings_open_source,
-        collection_name=settings.QDRANT_COLLECTION,
-    )
-    vectorstore.add_documents(semantic_chunks)
+
+    else:
+        # Si ya existe, simplemente usamos el vectorstore para añadir más
+        vectorstore = QdrantVectorStore(
+            client=client,
+            collection_name=settings.QDRANT_COLLECTION,
+            embedding=embeddings_open_source,
+        )
+        vectorstore.add_documents(semantic_chunks)
 
