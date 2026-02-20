@@ -16,3 +16,5 @@ numpy
 pandas
 loguru
 sentence-transformers
+passlib
+sqlalchemy
