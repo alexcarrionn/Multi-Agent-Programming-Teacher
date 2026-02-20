@@ -7,7 +7,7 @@ class AgentState(TypedDict):
     # Mensajes que se le ha pasado al agente. 
     mensajes: Annotated[List[BaseMessage], add_messages]
 
-    #inormacion acerca del usuario
+    #informacion acerca del usuario
     user_id : Optional[str]
     user_level: Optional[str]
 
