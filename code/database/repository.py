@@ -1,7 +1,8 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
-from database.models import Base
+from database.models import Base, Alumno
+from database.hash_password import verify_password
 from config.settings import settings
 
 # URL de conexión estándar de SQLAlchemy para MySQL
@@ -42,3 +43,25 @@ def get_connection():
         raise
     finally:
         session.close()
+
+#Funcion para poder encontrar a un alumno por su email 
+def get_alumno_by_email(email: str) -> Alumno | None:
+    """Busca un alumno por su email. Devuelve el objeto Alumno o None."""
+    session = SessionLocal()
+    try:
+        return session.query(Alumno).filter(Alumno.email == email).first()
+    finally:
+        session.close()
+
+#Funcion para autenticar a un alumno utilizando su email y contraseña, verificando las credenciales contra la base de datos MySQL
+def authenticate_alumno(email: str, plain_password: str) -> Alumno | None:
+    """
+    Autentica a un alumno contra la base de datos MySQL.
+    Devuelve el objeto Alumno si las credenciales son correctas, o None en caso contrario.
+    """
+    alumno = get_alumno_by_email(email)
+    if alumno is None:
+        return None
+    if not verify_password(plain_password, alumno.password):
+        return None
+    return alumno
