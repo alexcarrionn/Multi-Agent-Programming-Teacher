@@ -65,3 +65,28 @@ def authenticate_alumno(email: str, plain_password: str) -> Alumno | None:
     if not verify_password(plain_password, alumno.password):
         return None
     return alumno
+
+def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) -> Alumno:
+    """
+    Registra un nuevo alumno en la base de datos MySQL.
+    Lanza una excepción ValueError si el email ya está registrado.
+    Devuelve el objeto Alumno registrado.
+    """
+    session = SessionLocal()
+    try:
+        existing_alumno = session.query(Alumno).filter(Alumno.email == email).first()
+        if existing_alumno is not None:
+            raise ValueError("El email ya está registrado.")
+        
+        new_alumno = Alumno(
+            email=email,
+            password=plain_password,  # El password se hashéa automáticamente en el setter
+            nombre=nombre,
+            nivel=nivel
+        )
+        session.add(new_alumno)
+        session.commit()
+        session.refresh(new_alumno)
+        return new_alumno
+    finally:
+        session.close()    
