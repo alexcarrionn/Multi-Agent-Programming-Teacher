@@ -13,4 +13,6 @@ mysql-connector-python
 passlib                        
 python-dotenv  
 typing
-typing_extensions               
+typing_extensions    
+i18n           
+polib

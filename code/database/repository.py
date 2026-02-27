@@ -5,7 +5,9 @@ from database.hash_password import hash_password, verify_password
 from config.settings import settings
 import os
 import pandas as pd
+from i18n import setup_i18n
 
+_= setup_i18n("es")
 # URL de conexión estándar de SQLAlchemy para MySQL
 DATABASE_URL = (
     f"mysql+mysqlconnector://{settings.MYSQL_USER}:{settings.MYSQL_PASSWORD}"
@@ -18,7 +20,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 #funcion para crear las tablas en la base de datos MySQL utilizando SQLAlchemy
 def create_tables():
     Base.metadata.create_all(bind=engine)
-    print("Tablas creadas correctamente.")
+    print(_("TABLES CREATED SUCCESSFULLY"))
 
 #Comprobamos la conexión a la base de datos MySQL y mostramos el nombre de la base de datos a la que estamos conectados
 def check_connection():
@@ -26,10 +28,10 @@ def check_connection():
         with engine.connect() as connection:
             result = connection.execute(text("SELECT DATABASE();"))
             db_name = result.fetchone()[0]
-            print(f"Conectado a la base de datos: {db_name}")
+            print(_("DATABASE CONNECTION SUCCESSFULLY") + f" {db_name}")
             return True
     except Exception as e:
-        print(f"Error al conectar a la base de datos MySQL: {e}")
+        print(f"{_('DATABASE CONNECTION ERROR')}: {e}")
         return False
 
 
@@ -39,7 +41,7 @@ def get_connection():
     try:
         yield session
     except Exception as e:
-        print(f"Error en la conexión a la base de datos: {e}")
+        print(f"{_('DATABASE CONNECTION ERROR')}: {e}")
         session.rollback()
         raise
     finally:
@@ -77,7 +79,7 @@ def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) ->
     try:
         existing_alumno = session.query(Alumno).filter(Alumno.email == email).first()
         if existing_alumno is not None:
-            raise ValueError("El email ya está registrado.")
+            raise ValueError(_("EMAIL ALREADY REGISTERED"))
         
         new_alumno = Alumno(
             email=email,

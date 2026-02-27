@@ -1,0 +1,69 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: TFG 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "ERROR EMAIL NOT FROM UM"
+msgstr "Error: The email entered is not valid. Please enter a University of Murcia email address (ending in @um.es).\n"
+
+msgid "ERROR EMAIL NOT AUTHORIZED"
+msgstr "Error: The email entered is not authorized to register. Please contact your instructor to obtain access.\n"
+
+msgid "INPUT EMAIL"
+msgstr "Enter your email: "
+
+msgid "INPUT PASSWORD"
+msgstr "Enter your password: "
+
+msgid "INPUT NAME"
+msgstr "Enter your name: "
+
+msgid "INPUT LEVEL"
+msgstr "Enter your level (beginner, intermediate, advanced, etc.): "
+
+msgid "REGISTRATION SUCCESS"
+msgstr "Registration completed successfully."
+
+msgid "REGISTRATION ERROR"
+msgstr "Registration error."
+
+msgid "WELCOME MESSAGE"
+msgstr "Welcome to the teaching agent. Type 'login' to begin or 'register' to create an account (or 'exit' to quit): "
+
+msgid "GOODBYE MESSAGE"
+msgstr "Exiting the teaching agent. See you soon!"
+
+msgid "INPUT MESSAGE"
+msgstr "Enter your message (or 'exit'): "
+
+msgid "INVALID OPTION MESSAGE"
+msgstr "Invalid option. Please type 'login', 'register', or 'exit'.\n"
+
+msgid "ERROR INVALID CREDENTIALS"
+msgstr "Error: Invalid credentials. Please try again.\n"
+
+msgid "WELCOME USER"
+msgstr "Welcome"
+
+msgid "LOGIN"
+msgstr "login"
+
+msgid "EXIT"
+msgstr "exit" 
+
+msgid "REGISTER" 
+msgstr "register"
+
+msgid "TABLES CREATED SUCCESSFULLY"
+msgstr "Tables created successfully"
+
+msgid "DATABASE CONNECTION SUCCESSFULLY"
+msgstr  "Connected to the database:  "
+
+msgid "DATABASE CONNECTION ERROR"
+msgstr "Error connecting to the database:  "
+
+msgid "EMAIL ALREADY REGISTERED"
+msgstr "The email is already registered."

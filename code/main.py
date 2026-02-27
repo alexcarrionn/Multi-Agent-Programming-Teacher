@@ -1,62 +1,65 @@
 from database.repository import comprobacion_email, register_alumno, authenticate_alumno
 from langgraph.workflow import stream_graph_updates
+from i18n import setup_i18n
+
+_= setup_i18n("es")
 
 #Definimos una funcion en la que se registre un usuario
 def registrar_alumno():
-    email = input("Introduce tu correo: ")
+    email = input(_("INPUT EMAIL"))
     #Primero comprobamos que el email es de la um 
     if not email.endswith("@um.es"):
-        print("Error: el correo introducido no es válido. Por favor, introduce un correo de la Universidad de Murcia (terminado en @um.es).\n")
+        print(_("ERROR EMAIL NOT FROM UM"))
         return
     #Comprobamos que el email este en el excel puesto por el docente
     comprobacion = comprobacion_email(email)
     if not comprobacion:
-        print("Error: el correo introducido no está autorizado para registrarse. Por favor, contacta con tu docente para obtener acceso.\n")
+        print(_("ERROR EMAIL NOT AUTHORIZED"))
         return
     else: 
-        password = input("Introduce tu contraseña: ")
-        nombre = input("Introduce tu nombre: ")
-        nivel = input("Introduce tu nivel (principiante, intermedio, avanzado, etc...): ")
+        password = input(_("INPUT PASSWORD"))
+        nombre = input(_("INPUT NAME"))
+        nivel = input(_("INPUT LEVEL"))
         # Registramos al alumno en la base de datos MySQL
         try:
             register_alumno(email, password, nombre, nivel)
-            print("Registro completado con éxito.")
+            print(_("REGISTRATION SUCCESS"))
         except ValueError as e:
-            print(f"Error en el registro: {e}")
+            print(_("REGISTRATION ERROR") + f" {e}")
 
 
 #Funcion principal para ejecutar el workflow del agente docente
 if __name__ == "__main__":
     #Bucle para poder identificar al usuario
     while True:
-        user_input = input("Bienvenido al agente docente. Escribe 'iniciar sesion' para comenzar o 'registrarse' para poder crear una cuenta (o 'salir' para salir): ")
-        if user_input.lower() == "salir":
-            print("Saliendo del agente docente. ¡Hasta luego!")
+        user_input = input(_("WELCOME MESSAGE"))
+        if user_input.lower() == _("EXIT"):
+            print(_("GOODBYE MESSAGE"))
             break
-        elif user_input.lower() == "registrarse":
+        elif user_input.lower() == _("REGISTER"):
            registrar_alumno()
-        elif user_input.lower() == "iniciar sesion":
-            email = input("Introduce tu correo: ")
-            password = input("Introduce tu contraseña: ")
+        elif user_input.lower() == _("LOGIN"):
+            email = input(_("INPUT EMAIL"))
+            password = input(_("INPUT PASSWORD"))
 
             # Validamos las credenciales contra la base de datos MySQL
             alumno = authenticate_alumno(email, password)
             if alumno is None:
-                print("Error: credenciales incorrectas. Inténtalo de nuevo.\n")
+                print(_("ERROR INVALID CREDENTIALS"))
                 continue
 
-            print(f"Bienvenido, {alumno.nombre} (nivel: {alumno.nivel or 'sin definir'})\n")
+            print(_("WELCOME USER") + f" {alumno.nombre}\n")
 
             # Usamos el email como thread_id para persistir la conversación por alumno
             thread_id = alumno.email
 
             # Bucle de conversación para el alumno autenticado
             while True:
-                user_input = input("Introduce tu mensaje (o 'salir'): ")
-                if user_input.lower() == "salir":
-                    print("Saliendo del agente docente. ¡Hasta luego!")
+                user_input = input(_("INPUT MESSAGE"))
+                if user_input.lower() == _("EXIT"):
+                    print(_("GOODBYE MESSAGE"))
                     break
                 stream_graph_updates(user_input, thread_id)
             break
         else: 
-            print("Opción no válida. Por favor, escribe 'iniciar sesion', 'registrarse' o 'salir'.\n")
+            print(_("INVALID OPTION MESSAGE"))

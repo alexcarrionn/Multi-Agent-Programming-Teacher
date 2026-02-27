@@ -1,0 +1,69 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: TFG 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es\n"
+
+msgid "ERROR EMAIL NOT FROM UM"
+msgstr "Error: el correo introducido no es válido. Por favor, introduce un correo de la Universidad de Murcia (terminado en @um.es).\n"
+
+msgid "ERROR EMAIL NOT AUTHORIZED"
+msgstr "Error: el correo introducido no está autorizado para registrarse. Por favor, contacta con tu docente para obtener acceso.\n"
+
+msgid "INPUT EMAIL"
+msgstr "Introduce tu correo: "
+
+msgid "INPUT PASSWORD"
+msgstr "Introduce tu contraseña: "
+
+msgid "INPUT NAME"
+msgstr "Introduce tu nombre: "
+
+msgid "INPUT LEVEL"
+msgstr "Introduce tu nivel (principiante, intermedio, avanzado, etc...): "
+
+msgid "REGISTRATION SUCCESS" 
+msgstr "Registro completado con éxito."
+
+msgid "REGISTRATION ERROR"
+msgstr "Error en el registro"
+
+msgid "WELCOME MESSAGE"
+msgstr "Bienvenido al agente docente. Escribe 'iniciar sesion' para comenzar o 'registrarse' para poder crear una cuenta (o 'salir' para salir): "
+
+msgid "GOODBYE MESSAGE"
+msgstr "Saliendo del agente docente. ¡Hasta luego!"
+
+msgid "INPUT MESSAGE"
+msgstr "Introduce tu mensaje (o 'salir'): "
+
+msgid "INVALID OPTION MESSAGE"
+msgstr "Opción no válida. Por favor, escribe 'iniciar sesion', 'registrarse' o 'salir'.\n"
+
+msgid "ERROR INVALID CREDENTIALS" 
+msgstr "Error: credenciales incorrectas. Inténtalo de nuevo.\n"
+
+msgid "WELCOME USER"
+msgstr "Bienvenido"
+
+msgid "LOGIN"
+msgstr "iniciar sesion"
+
+msgid "EXIT"
+msgstr "salir"  
+
+msgid "REGISTER" 
+msgstr "registrarse"
+
+msgid "TABLES CREATED SUCCESSFULLY"
+msgstr "Tablas creadas correctamente."
+
+msgid "DATABASE CONNECTION SUCCESSFULLY"
+msgstr  "Conectado a la base de datos: "
+
+msgid "DATABASE CONNECTION ERROR"
+msgstr "Error al conectar a la base de datos: "
+
+msgid "EMAIL ALREADY REGISTERED"
+msgstr "El email ya está registrado."
