@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from contextlib import contextmanager
 from database.models import Base, Alumno
-from database.hash_password import verify_password
+from database.hash_password import hash_password, verify_password
 from config.settings import settings
+import os
+import pandas as pd
 
 # URL de conexión estándar de SQLAlchemy para MySQL
 DATABASE_URL = (
@@ -80,7 +81,7 @@ def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) ->
         
         new_alumno = Alumno(
             email=email,
-            password=plain_password,  # El password se hashéa automáticamente en el setter
+            password=hash_password(plain_password), 
             nombre=nombre,
             nivel=nivel
         )
@@ -90,3 +91,10 @@ def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) ->
         return new_alumno
     finally:
         session.close()    
+
+#Funcion en la que el agente supervisor va a comprobar que el email introducido por el alumno esta en el excel que el docente ha proporcionado con los alumnos autorizados para usar el agente docente, si el email no esta en ese excel el alumno no podra registrarse ni iniciar sesion
+def comprobacion_email(email: str) -> bool:
+    ruta = os.path.join(os.path.dirname(__file__), "..", "data", "alumnos_autorizados.xlsx")
+    df = pd.read_excel(ruta)
+    return email in df["correo"].values
+
