@@ -1,6 +1,6 @@
-from enum import StrEnum 
+from enum import Enum
 
-class AgentType(StrEnum):
+class AgentType(str, Enum):
     SUPERVISOR = "supervisor"
     EDUCADOR = "educador"
     DEMOSTRADOR = "demonstrador"

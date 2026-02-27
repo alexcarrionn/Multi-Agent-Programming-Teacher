@@ -30,7 +30,7 @@ msgid "REGISTRATION ERROR"
 msgstr "Registration error."
 
 msgid "WELCOME MESSAGE"
-msgstr "Welcome to the teaching agent. Type 'login' to begin or 'register' to create an account (or 'exit' to quit): "
+msgstr "Welcome to the teaching agent. Type 'login' to begin , 'register' to create an account or 'exit' to quit: "
 
 msgid "GOODBYE MESSAGE"
 msgstr "Exiting the teaching agent. See you soon!"

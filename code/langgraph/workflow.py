@@ -5,11 +5,11 @@ from langgraph.constants import END
 from langchain_core.messages import SystemMessage
 from langchain_groq import ChatGroq
 from langgraph.checkpoint.memory import MemorySaver
-from prompts.educador_prompts import AGENTE_EDUCADOR_PROMPT
 from prompts.demostrador_prompts import AGENTE_DEMOSTRADOR_PROMPT
 from prompts.critico_prompts import AGENTE_CRITICO_PROMPT
 from prompts.evaluador_prompts import AGENTE_EVALUADOR_PROMPT
 from agents.agentType import AgentType
+from agents.educador import EducadorAgent
 
 
 
@@ -20,12 +20,6 @@ load_dotenv(find_dotenv())
 llm = ChatGroq(model="llama3-70b-8192", temperature=0)
 
 #definimos cada uno de los agentes que van a participar en el workflow, cada uno con su propio prompt
-#con ek systen=m message mas el contexto hacemos que los agentes tengan el contexto de la conversacion y no solo el ultimo mensaje del usuario
-def educador(state: AgentState) : 
-    messages = [[SystemMessage(content=AGENTE_EDUCADOR_PROMPT)] + state["mensajes"]]
-    response = llm.invoke(messages)
-    return {"mensajes": [response]}
-    
 def demostrador(state: AgentState) :
     messages = [SystemMessage(content = AGENTE_DEMOSTRADOR_PROMPT)] + state["mensajes"]
     response = llm.invoke(messages)
@@ -63,8 +57,11 @@ def _build_graph():
     #Creamos el grafo de estados del workflow
     graph_builder  = StateGraph(AgentState)
     #agregamos todos los agentes al grafo de estados, cada uno con su propio nodo
+    educador_agent = EducadorAgent(llm)
+
+
     graph_builder.add_node(AgentType.SUPERVISOR.value, supervisor)
-    graph_builder.add_node(AgentType.EDUCADOR.value, educador)
+    graph_builder.add_node(AgentType.EDUCADOR.value, educador_agent.run)
     graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador)
     graph_builder.add_node(AgentType.CRITICO.value, critico)
     graph_builder.add_node(AgentType.EVALUADOR.value, evaluador)
