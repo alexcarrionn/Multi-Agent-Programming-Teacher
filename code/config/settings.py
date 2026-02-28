@@ -15,7 +15,7 @@ class Settings:
 
     # -- Configuracion del LLM --
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq")
-    LLM_MODEL = os.getenv("LLM_MODEL", "llama3-70b-8192")
+    LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
     LLM_API_KEY = os.getenv("LLM_API_KEY")
 
     # -- Configuracion de QDRANT --
