@@ -2,6 +2,7 @@
 import os
 
 from agents.supervisor import nodo_supervisor
+from agents.critico import CriticoAgent
 from .state import AgentState
 from langgraph.graph import StateGraph
 from dotenv import load_dotenv, find_dotenv
@@ -29,11 +30,6 @@ def demostrador(state: AgentState) :
     response = llm.invoke(messages)
     return {"mensajes": [response]}
     
-def critico(state: AgentState) :
-    messages = [[SystemMessage(content=AGENTE_CRITICO_PROMPT)] + state["mensajes"]]
-    response = llm.invoke(messages)
-    return {"mensajes": [response]}
-    
 def evaluador(state: AgentState) :
     messages = [[SystemMessage(content=AGENTE_EVALUADOR_PROMPT)] + state["mensajes"]]
     response = llm.invoke(messages)
@@ -45,12 +41,13 @@ def _build_graph():
     graph_builder  = StateGraph(AgentState)
     #agregamos todos los agentes al grafo de estados, cada uno con su propio nodo
     educador_agent = EducadorAgent(llm)
+    critico_agent = CriticoAgent(llm)
 
 
     graph_builder.add_node(AgentType.SUPERVISOR.value, nodo_supervisor)
     graph_builder.add_node(AgentType.EDUCADOR.value, educador_agent.run)
     graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador)
-    graph_builder.add_node(AgentType.CRITICO.value, critico)
+    graph_builder.add_node(AgentType.CRITICO.value, critico_agent.run)
     graph_builder.add_node(AgentType.EVALUADOR.value, evaluador)
 
     """Establecemos el punto de entrada del workflow, en este caso el supervisor es el encargado de recibir el mensaje del usuario y 
