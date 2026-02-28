@@ -1,3 +1,7 @@
+
+import os
+
+from agents.supervisor import nodo_supervisor
 from .state import AgentState
 from langgraph.graph import StateGraph
 from dotenv import load_dotenv, find_dotenv
@@ -16,8 +20,8 @@ from agents.educador import EducadorAgent
 #Cargamos las variables de entorno
 load_dotenv(find_dotenv())
 
-#inicializamos el llm que vamos a usar en este caso llama3-70b-8192 de  groq
-llm = ChatGroq(model="llama3-70b-8192", temperature=0)
+#inicializamos el llm que vamos a usar en este caso llama-3.3-70b-versatilede  groq
+llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 
 #definimos cada uno de los agentes que van a participar en el workflow, cada uno con su propio prompt
 def demostrador(state: AgentState) :
@@ -34,23 +38,6 @@ def evaluador(state: AgentState) :
     messages = [[SystemMessage(content=AGENTE_EVALUADOR_PROMPT)] + state["mensajes"]]
     response = llm.invoke(messages)
     return {"mensajes": [response]}
-    
-def supervisor(state: AgentState) :
-    return {"mensajes": [llm.invoke(state["mensajes"])]}
-
-#Funcion auxiliar que permite que el agente supervisor decida cual es el siguiente agente.
-def supervisor_siguiente(state: AgentState) -> str: 
-    intencion = state.get("intencion", "")
-    if intencion == "aprender":
-        return AgentType.EDUCADOR.value
-    elif intencion == "ver ejemplo":
-        return AgentType.DEMOSTRADOR.value
-    elif intencion == "recibir feedback":
-        return AgentType.CRITICO.value
-    elif intencion == "evaluar mi código":
-        return AgentType.EVALUADOR.value
-    else:
-        return END
 
 def _build_graph():    
     """Construye y compila el grafo de estados del workflow."""
@@ -60,7 +47,7 @@ def _build_graph():
     educador_agent = EducadorAgent(llm)
 
 
-    graph_builder.add_node(AgentType.SUPERVISOR.value, supervisor)
+    graph_builder.add_node(AgentType.SUPERVISOR.value, nodo_supervisor)
     graph_builder.add_node(AgentType.EDUCADOR.value, educador_agent.run)
     graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador)
     graph_builder.add_node(AgentType.CRITICO.value, critico)
@@ -73,19 +60,24 @@ def _build_graph():
 
     #conectamos los nodos entre si, estableciendo el flujo de trabajo
     #el supervisor gracias a esto podra decidir a que agente enviar el mensaje del usuario segun la intencion que tenga
-    graph_builder.add_conditional_edges(AgentType.SUPERVISOR.value, supervisor_siguiente,
-                                        {AgentType.EDUCADOR.value: AgentType.EDUCADOR.value, 
-                                        AgentType.DEMOSTRADOR.value: AgentType.DEMOSTRADOR.value, 
-                                        AgentType.CRITICO.value: AgentType.CRITICO.value, 
-                                        AgentType.EVALUADOR.value: AgentType.EVALUADOR.value,
-                                            END: END})
+    graph_builder.add_conditional_edges(
+        AgentType.SUPERVISOR.value,
+        lambda state: state["next"],
+        {
+            AgentType.EDUCADOR.value: AgentType.EDUCADOR.value,
+            AgentType.DEMOSTRADOR.value: AgentType.DEMOSTRADOR.value,
+            AgentType.CRITICO.value: AgentType.CRITICO.value,
+            AgentType.EVALUADOR.value: AgentType.EVALUADOR.value,
+            "FINISH": END
+        }
+    )
     #educador puede pedirle un ejemplo al demostrador y ya salir 
     graph_builder.add_edge(AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value)
     graph_builder.add_edge(AgentType.DEMOSTRADOR.value, END)
 
     #el critico puede pedirle al evaluador que evalúe el código del alumno y salir
-    graph_builder.add_edge(AgentType.CRITICO.value, AgentType.EVALUADOR.value)
-    graph_builder.add_edge(AgentType.EVALUADOR.value, END)
+    graph_builder.add_edge(AgentType.EVALUADOR.value, AgentType.CRITICO.value)
+    graph_builder.add_edge(AgentType.CRITICO.value, END)
     
     #añadimos memoria al grafo para que los agentes puedan recordar las interacciones anteriores
     memory = MemorySaver()

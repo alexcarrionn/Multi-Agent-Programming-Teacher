@@ -1,33 +1,38 @@
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.output_parsers.openai_functions import JsonOutputFunctionsParser
+import os
+
 from langchain_groq import ChatGroq
 from agentType import AgentType
+from typing import Literal
+from typing_extensions import TypedDict
+from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
 #definimos nuestro llm
-llm = ChatGroq(model="llama3-70b-8192", temperature=0)
+llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 
 
 # Miembros del equipo
 miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVALUADOR.value, AgentType.CRITICO.value]
 
-# Prompt del supervisor
+#Definimos el Schema de salida estructurada - el LLM solo puede devolver uno de estos valores 
+class Router(TypedDict):
+    next_agent: Literal["EDUCADOR", "DEMOSTRADOR", "EVALUADOR", "CRITICO", "FINISH"]
+
+#Definimos el prompt del supervisor, que se encargará de decidir que agente debe actuar 
 prompt_supervisor = ChatPromptTemplate.from_messages([
-    ("system", "Eres un supervisor a cargo de gestionar una conversación entre los siguientes trabajadores: {members}. "
-               "Dada la petición del usuario, decide qué trabajador debe actuar a continuación. "
-               "Cada trabajador realizará una tarea y responderá con sus resultados. "
-               "Cuando el equipo haya terminado, responde con FINISH."),
-    MessagesPlaceholder(variable_name="messages"),
-    ("system", "Dado el historial de conversaciones, ¿quién debería actuar a continuación? "
-               "O, si ha terminado, responde FINISH. "
-               "Selecciona uno de: {members}."),
+    ("system", AGENTE_SUPERVISOR_PROMPT),
+    MessagesPlaceholder(variable_name="mensajes"),
 ]).partial(members=", ".join(miembros))
 
-# Definir el agente supervisor
+#Funcion princiapl del supervisor, se encarga de recibir el estado actual y construir una respuesta utilizando el prompt y el llm
 def nodo_supervisor(state):
-    llm_con_herramientas = llm.bind_functions([
-        {"next": member, "description": f"Llamar al {member}"} for member in miembros
-    ])
-    chain = prompt_supervisor | llm_con_herramientas | JsonOutputFunctionsParser()
-    return chain.invoke(state)
-
+    #Construimos la cadena de procesamiento del supervisor, que incluye el prompt y el llm
+    chain = prompt_supervisor | llm.with_structured_output(Router)
+    #Contruimos la respuesta del supervisor, incluyendo los mensajes previos
+    response = chain.invoke({
+        "mensajes": state["mensajes"]
+    })
+    #Devolvemos la respuesta del supervisor, que incluye el siguiente agente a ejecutar o FINISH si el workflow ha terminado
+    return {
+        "next": response["next_agent"]}
