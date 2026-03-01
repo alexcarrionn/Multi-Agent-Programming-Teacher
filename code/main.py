@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 if user_input.lower() == _("EXIT"):
                     print(_("GOODBYE MESSAGE"))
                     break
-                stream_graph_updates(user_input, thread_id)
+                stream_graph_updates(user_input, thread_id, user_level=alumno.nivel)
             break
         else: 
             print(_("INVALID OPTION MESSAGE"))

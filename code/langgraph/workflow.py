@@ -1,19 +1,17 @@
 
 import os
-
 from agents.supervisor import nodo_supervisor
 from .state import AgentState
 from langgraph.graph import StateGraph
 from dotenv import load_dotenv, find_dotenv
 from langgraph.constants import END
-from langchain_core.messages import SystemMessage
 from langchain_groq import ChatGroq
 from langgraph.checkpoint.memory import MemorySaver
-from prompts.evaluador_prompts import AGENTE_EVALUADOR_PROMPT
 from agents.agentType import AgentType
 from agents.educador import EducadorAgent
 from agents.demostrador import DemostradorAgent
 from agents.critico import CriticoAgent
+from agents.evaluador import EvaluadorAgent
 
 
 
@@ -27,12 +25,6 @@ llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 #from langchain_google_genai import ChatGoogleGenerativeAI
 #llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key="KEY")
 
-    
-def evaluador(state: AgentState) :
-    messages = [[SystemMessage(content=AGENTE_EVALUADOR_PROMPT)] + state["mensajes"]]
-    response = llm.invoke(messages)
-    return {"mensajes": [response]}
-
 def _build_graph():    
     """Construye y compila el grafo de estados del workflow."""
     #Creamos el grafo de estados del workflow
@@ -41,13 +33,13 @@ def _build_graph():
     educador_agent = EducadorAgent(llm)
     critico_agent = CriticoAgent(llm)
     demostrador_agent = DemostradorAgent(llm)
-
+    evaluador_agent = EvaluadorAgent(llm)
 
     graph_builder.add_node(AgentType.SUPERVISOR.value, nodo_supervisor)
     graph_builder.add_node(AgentType.EDUCADOR.value, educador_agent.run)
     graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador_agent.run)
     graph_builder.add_node(AgentType.CRITICO.value, critico_agent.run)
-    graph_builder.add_node(AgentType.EVALUADOR.value, evaluador)
+    graph_builder.add_node(AgentType.EVALUADOR.value, evaluador_agent.run)
 
     """Establecemos el punto de entrada del workflow, en este caso el supervisor es el encargado de recibir el mensaje del usuario y 
     ecidir a que agente enviar el mensaje dependiendo de lo que quiera hacer el usuario"""
