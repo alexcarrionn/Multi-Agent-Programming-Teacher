@@ -2,7 +2,6 @@
 import os
 
 from agents.supervisor import nodo_supervisor
-from agents.critico import CriticoAgent
 from .state import AgentState
 from langgraph.graph import StateGraph
 from dotenv import load_dotenv, find_dotenv
@@ -10,11 +9,11 @@ from langgraph.constants import END
 from langchain_core.messages import SystemMessage
 from langchain_groq import ChatGroq
 from langgraph.checkpoint.memory import MemorySaver
-from prompts.demostrador_prompts import AGENTE_DEMOSTRADOR_PROMPT
-from prompts.critico_prompts import AGENTE_CRITICO_PROMPT
 from prompts.evaluador_prompts import AGENTE_EVALUADOR_PROMPT
 from agents.agentType import AgentType
 from agents.educador import EducadorAgent
+from agents.demostrador import DemostradorAgent
+from agents.critico import CriticoAgent
 
 
 
@@ -24,11 +23,10 @@ load_dotenv(find_dotenv())
 #inicializamos el llm que vamos a usar en este caso llama-3.3-70b-versatilede  groq
 llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 
-#definimos cada uno de los agentes que van a participar en el workflow, cada uno con su propio prompt
-def demostrador(state: AgentState) :
-    messages = [SystemMessage(content = AGENTE_DEMOSTRADOR_PROMPT)] + state["mensajes"]
-    response = llm.invoke(messages)
-    return {"mensajes": [response]}
+#PODEMOS UTILIZAR TAMB EL GEMINI 2.0 DE GOOGLE
+#from langchain_google_genai import ChatGoogleGenerativeAI
+#llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key="KEY")
+
     
 def evaluador(state: AgentState) :
     messages = [[SystemMessage(content=AGENTE_EVALUADOR_PROMPT)] + state["mensajes"]]
@@ -42,11 +40,12 @@ def _build_graph():
     #agregamos todos los agentes al grafo de estados, cada uno con su propio nodo
     educador_agent = EducadorAgent(llm)
     critico_agent = CriticoAgent(llm)
+    demostrador_agent = DemostradorAgent(llm)
 
 
     graph_builder.add_node(AgentType.SUPERVISOR.value, nodo_supervisor)
     graph_builder.add_node(AgentType.EDUCADOR.value, educador_agent.run)
-    graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador)
+    graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador_agent.run)
     graph_builder.add_node(AgentType.CRITICO.value, critico_agent.run)
     graph_builder.add_node(AgentType.EVALUADOR.value, evaluador)
 

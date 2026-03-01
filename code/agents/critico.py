@@ -30,5 +30,5 @@ class CriticoAgent:
         #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las explicaciones que el agente considere relevantes para el usuario.
         return {
             "mensajes": [response],
-            "explicaciones": response.content
+            "feedback": response.content
         } 

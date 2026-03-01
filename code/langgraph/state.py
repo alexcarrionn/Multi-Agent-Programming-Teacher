@@ -20,9 +20,8 @@ class AgentState(TypedDict):
 
     #Respuestas de los posibles agentes.
     explicaciones: Optional[str]
-    ejemplos: Optional[str]
+    demostraciones: Optional[str]
     feedback: Optional[str]
-    evaluacion: Optional[str]
     puntuacion: Optional[float]
 
     #Informacion contexto de la tarea actual
