@@ -22,7 +22,9 @@ class CriticoAgent:
             #coge el enunciado del estado, si no esta definido se asume que no hay enunciado relevante
             "enunciado": state.get("enunciado", "No disponible"), 
             #coge el codigo del alumno del estado, si no esta definido se asume que no hay codigo disponible
-            "codigo_alumno": state.get("codigo_alumno", "No disponible")
+            "codigo_alumno": state.get("codigo_alumno", "No disponible"), 
+            #coge el contexto adicional del estado, si no esta definido se asume que no hay contexto adicional relevante
+            "contexto": state.get("contexto", "No disponible")
         })
         #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las explicaciones que el agente considere relevantes para el usuario.
         return {
