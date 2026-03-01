@@ -8,9 +8,6 @@ class CriticoAgent:
         self.llm = llm
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", AGENTE_CRITICO_PROMPT),
-            ("system", "Nivel del alumno: {user_level}"),
-            ("system", "Enunciado del ejercicio:\n{enunciado}"),
-            ("system", "Código del alumno:\n{codigo_alumno}"),
             MessagesPlaceholder(variable_name="mensajes"),
         ])
     #Funcion principal del agente, se encarga de recibir el estado actural y construir una respuesta utilizando el prompt y el llm
