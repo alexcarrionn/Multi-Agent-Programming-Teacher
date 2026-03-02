@@ -1,7 +1,7 @@
 import os
 
 from langchain_groq import ChatGroq
-from agentType import AgentType
+from agents.agentType import AgentType
 from typing import Literal
 from typing_extensions import TypedDict
 from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
@@ -17,7 +17,7 @@ miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVA
 
 #Definimos el Schema de salida estructurada - el LLM solo puede devolver uno de estos valores 
 class Router(TypedDict):
-    next_agent: Literal["EDUCADOR", "DEMOSTRADOR", "EVALUADOR", "CRITICO", "FINISH"]
+    next_agent: Literal["educador", "demonstrador", "evaluador", "critico", "FINISH"]
 
 #Definimos el prompt del supervisor, que se encargará de decidir que agente debe actuar 
 prompt_supervisor = ChatPromptTemplate.from_messages([
@@ -35,4 +35,4 @@ def nodo_supervisor(state):
     })
     #Devolvemos la respuesta del supervisor, que incluye el siguiente agente a ejecutar o FINISH si el workflow ha terminado
     return {
-        "next": response["next_agent"]}
+        "next": response["next_agent"].lower() if response["next_agent"] != "FINISH" else "FINISH"}

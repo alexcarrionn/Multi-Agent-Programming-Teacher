@@ -16,3 +16,4 @@ typing
 typing_extensions    
 i18n           
 polib
+openpyxl

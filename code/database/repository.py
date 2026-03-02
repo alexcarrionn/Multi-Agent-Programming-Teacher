@@ -14,7 +14,9 @@ DATABASE_URL = (
     f"@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DB}"
 )
 
-engine = create_engine(DATABASE_URL, echo=True)
+#para depurar la conexion y sbaer que todo va bien 
+#engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 #funcion para crear las tablas en la base de datos MySQL utilizando SQLAlchemy
@@ -98,5 +100,5 @@ def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) ->
 def comprobacion_email(email: str) -> bool:
     ruta = os.path.join(os.path.dirname(__file__), "..", "data", "alumnos_autorizados.xlsx")
     df = pd.read_excel(ruta)
-    return email in df["correo"].values
+    return email in df["Email"].values
 

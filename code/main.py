@@ -1,5 +1,5 @@
 from database.repository import comprobacion_email, register_alumno, authenticate_alumno
-from langgraph.workflow import stream_graph_updates
+from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 
 _= setup_i18n("es")
@@ -52,14 +52,15 @@ if __name__ == "__main__":
 
             # Usamos el email como thread_id para persistir la conversación por alumno
             thread_id = alumno.email
-
+            user_level = alumno.nivel
             # Bucle de conversación para el alumno autenticado
             while True:
                 user_input = input(_("INPUT MESSAGE"))
                 if user_input.lower() == _("EXIT"):
                     print(_("GOODBYE MESSAGE"))
                     break
-                stream_graph_updates(user_input, thread_id, user_level=alumno.nivel)
+                
+                stream_graph_updates(user_input, thread_id, user_level)
             break
         else: 
             print(_("INVALID OPTION MESSAGE"))
