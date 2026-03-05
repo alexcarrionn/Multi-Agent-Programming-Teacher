@@ -8,8 +8,10 @@ class DemostradorAgent:
         # Inicializamos el agente con el prompt especifico y el llm
         self.llm = llm
 
+    #Definimos una funcion para seleccionar el prompt segun el idioma del usuario. 
     def _get_prompt(self, idioma):
         """Selecciona el prompt en el idioma del usuario."""
+         #Si el idioma esta en ingles, seleccionamos el prompt en ingles, si el idioma esta en español seleccionamos el prompt en español, por defecto se selecciona el prompt en español
         prompt_text = AGENTE_DEMOSTRADOR_PROMPT_EN if idioma == "en" else AGENTE_DEMOSTRADOR_PROMPT_ES
         return ChatPromptTemplate.from_messages([
             ("system", prompt_text),

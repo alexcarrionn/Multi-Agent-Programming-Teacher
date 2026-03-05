@@ -13,7 +13,7 @@ Además de decidir el agente, debes extraer del mensaje del usuario:
 Responde con la decisión del agente y la extracción de enunciado y código.
 
 Además, detecta el idioma del último mensaje del usuario:
-- **idioma**: "es" si el usuario escribe en español, "en" si escribe en inglés.
+- **idioma**: "es" si el usuario escribe en español, "en" si escribe en inglés y así para todos los países, tienes que seguir la regla estandar es la BCP 47 (Best Current Practice 47), desarrollada por la IETF. .
 """
 
 

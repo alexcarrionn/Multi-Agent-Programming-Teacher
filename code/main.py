@@ -2,6 +2,7 @@ from database.repository import comprobacion_email, create_tables, register_alum
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 
+#Configuramos la internacionalización para mostrar los mensajes en el idioma del usuario, en este caso español
 _= setup_i18n("es")
 
 #Definimos una funcion en la que se registre un usuario
