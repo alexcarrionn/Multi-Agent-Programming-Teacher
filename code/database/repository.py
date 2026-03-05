@@ -1,6 +1,7 @@
+from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from database.models import Base, Alumno
+from database.models import Base, Alumno, Progreso
 from database.hash_password import hash_password, verify_password
 from config.settings import settings
 import os
@@ -14,7 +15,7 @@ DATABASE_URL = (
     f"@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DB}"
 )
 
-#para depurar la conexion y sbaer que todo va bien 
+#para depurar la conexion y saber que todo va bien 
 #engine = create_engine(DATABASE_URL, echo=True)
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -102,3 +103,28 @@ def comprobacion_email(email: str) -> bool:
     df = pd.read_excel(ruta)
     return email in df["Email"].values
 
+#Funcion que utilizaran los agentes evaluador y critico para guardar en la base de datos MySQL el progreso del alumno.
+def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alumno: str = None, puntuacion_ejercicio: str = None, retroalimentacion_ejercicio: str = None, ambito_dificultad: str = None): 
+    """Funcion que sirve para guardar en la base de datos 
+    MySQL el progreso del alumno, incluyendo los aspectos claves de este"""
+    session = SessionLocal()
+    try:
+        progreso_alumno = Progreso(
+            alumno_id=alumno_id,
+            enunciado_ejercicio=enunciado_ejercicio,
+            codigo_alumno=codigo_alumno,
+            puntuacion_ejercicio=puntuacion_ejercicio,
+            retroalimentacion_ejercicio=retroalimentacion_ejercicio,
+            fecha_evaluacion=datetime.now(),
+            ambito_dificultad=ambito_dificultad\
+        )
+        session.add(progreso_alumno)
+        session.commit()
+        session.refresh(progreso_alumno)
+        return progreso_alumno
+    except Exception as e:
+        print(f"{_('ERROR SAVING PROGRESS')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()  

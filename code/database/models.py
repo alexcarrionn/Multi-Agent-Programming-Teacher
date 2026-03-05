@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text
+from sqlalchemy import Column, DateTime, Integer, String, ForeignKey
+from sqlalchemy.dialects.mysql import LONGTEXT as longText
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 Base = declarative_base()
@@ -25,9 +26,11 @@ class Progreso(Base):
     __tablename__ = 'progresos'
     id = Column(Integer, primary_key=True, autoincrement=True)
     alumno_id = Column(Integer, ForeignKey('alumnos.id'), nullable=False)
-    ejercicios_completado = Column(Integer, default=0)
-    puntuacion_ejercicios = Column(String(255), nullable=True) 
-    retroalimentacion_ejercicio = Column(String(255), nullable=True)
+    enunciado_ejercicio = Column(longText, nullable=True)
+    codigo_alumno = Column(longText, nullable=True)
+    puntuacion_ejercicio = Column(longText, nullable=True) 
+    retroalimentacion_ejercicio = Column(longText, nullable=True)
+    fecha_evaluacion = Column(DateTime, nullable=True)
     ambito_dificultad = Column(String(255), nullable=True)
  
     alumno = relationship("Alumno", back_populates="progreso")

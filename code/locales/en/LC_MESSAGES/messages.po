@@ -67,3 +67,6 @@ msgstr "Error connecting to the database:  "
 
 msgid "EMAIL ALREADY REGISTERED"
 msgstr "The email is already registered."
+
+msgid "ERROR SAVING PROGRESS"
+msgstr "Error saving user progress to the database."

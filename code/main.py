@@ -53,6 +53,7 @@ if __name__ == "__main__":
             # Usamos el email como thread_id para persistir la conversación por alumno
             thread_id = alumno.email
             user_level = alumno.nivel
+            alumno_id = alumno.id
             # Bucle de conversación para el alumno autenticado
             while True:
                 user_input = input(_("INPUT MESSAGE"))
@@ -60,7 +61,7 @@ if __name__ == "__main__":
                     print(_("GOODBYE MESSAGE"))
                     break
                 
-                stream_graph_updates(user_input, thread_id, user_level)
+                stream_graph_updates(user_input, thread_id, user_level, alumno_id)
             break
         else: 
             print(_("INVALID OPTION MESSAGE"))

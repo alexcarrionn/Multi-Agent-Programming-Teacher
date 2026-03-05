@@ -77,11 +77,11 @@ def _build_graph():
 graph = _build_graph()
 
 # Funcion para ejecutar el workflow y mostrar las actualizaciones en tiempo real
-def stream_graph_updates(user_input: str, thread_id: str, user_level: str):
+def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int):
     config = {"configurable": {"thread_id": thread_id, "user_level": user_level}}
 
     events = graph.stream(
-        {"mensajes": [("user", user_input)]}, config, stream_mode="values"
+        {"mensajes": [("user", user_input)], "alumno_id": alumno_id}, config, stream_mode="values"
     )
     for event in events:
         message = event["mensajes"][-1]

@@ -6,7 +6,11 @@ Tu tarea es analizar los mensajes del usuario y decidir qué agente debe actuar 
 -**critico**: el usuario quiere recibir feedback o revisión sobre su propio código.
 -**FINISH**: la pregunta del usuario está fuera del ámbito de la asignatura, ya se ha respondido completamente o no requiere ningún agente. 
 
-Tienes que respnder únicamente con el nombre del agente que debe actuar a continuación o con FINISH. No respondas con explicaciones solo has de responder con la decisión. 
+Además de decidir el agente, debes extraer del mensaje del usuario:
+- **enunciado**: El enunciado del ejercicio que el alumno menciona o describe. Si no hay enunciado, devuelve una cadena vacía.
+- **codigo_alumno**: El código fuente que el alumno ha incluido en su mensaje. Si no hay código, devuelve una cadena vacía.
+
+Responde con la decisión del agente y la extracción de enunciado y código.
 """
 
 

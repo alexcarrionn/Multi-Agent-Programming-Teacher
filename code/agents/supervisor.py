@@ -15,9 +15,11 @@ llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 # Miembros del equipo
 miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVALUADOR.value, AgentType.CRITICO.value]
 
-#Definimos el Schema de salida estructurada - el LLM solo puede devolver uno de estos valores 
+#Definimos el Schema de salida estructurada - el LLM devuelve el agente destino y extrae enunciado/código si los hay
 class Router(TypedDict):
-    next_agent: Literal["educador", "demonstrador", "evaluador", "critico", "FINISH"]
+    next_agent: Literal["educador", "demostrador", "evaluador", "critico", "FINISH"]
+    enunciado: str
+    codigo_alumno: str
 
 #Definimos el prompt del supervisor, que se encargará de decidir que agente debe actuar 
 prompt_supervisor = ChatPromptTemplate.from_messages([
@@ -34,5 +36,14 @@ def nodo_supervisor(state):
         "mensajes": state["mensajes"]
     })
     #Devolvemos la respuesta del supervisor, que incluye el siguiente agente a ejecutar o FINISH si el workflow ha terminado
-    return {
-        "next": response["next_agent"].lower() if response["next_agent"] != "FINISH" else "FINISH"}
+    #Tambien extraemos el enunciado y el codigo del alumno si los hay en el mensaje
+    result = {
+        "next": response["next_agent"].lower() if response["next_agent"] != "FINISH" else "FINISH"
+    }
+
+    #definimos el enunciado y el codigo del alumno en el estado
+    if response.get("enunciado"):
+        result["enunciado"] = response["enunciado"]
+    if response.get("codigo_alumno"):
+        result["codigo_alumno"] = response["codigo_alumno"]
+    return result

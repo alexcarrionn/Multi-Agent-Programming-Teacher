@@ -14,6 +14,7 @@ class AgentState(TypedDict):
 
     #informacion acerca del usuario
     user_level: Optional[str]
+    alumno_id: Optional[int]
 
     #Contexto RAG
     contexto: Optional[str]
@@ -31,11 +32,11 @@ class AgentState(TypedDict):
     enunciado: Optional[str]
 
     #Control de flujo entre agentes
-    agente_actual: Optional[str]
-    necesita_demostraciones: Optional[bool]
-    necesita_feedback: Optional[bool]
-    finalizado: Optional[bool]
-    error: Optional[str]
+    #agente_actual: Optional[str]
+    #necesita_demostraciones: Optional[bool]
+    #necesita_feedback: Optional[bool]
+    #finalizado: Optional[bool]
+    #error: Optional[str]
 
 
 
