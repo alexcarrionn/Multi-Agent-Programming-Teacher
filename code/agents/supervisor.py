@@ -20,6 +20,7 @@ class Router(TypedDict):
     next_agent: Literal["educador", "demostrador", "evaluador", "critico", "FINISH"]
     enunciado: str
     codigo_alumno: str
+    idioma: Literal["es", "en"]
 
 #Definimos el prompt del supervisor, que se encargará de decidir que agente debe actuar 
 prompt_supervisor = ChatPromptTemplate.from_messages([
@@ -46,4 +47,6 @@ def nodo_supervisor(state):
         result["enunciado"] = response["enunciado"]
     if response.get("codigo_alumno"):
         result["codigo_alumno"] = response["codigo_alumno"]
+    #Detectamos el idioma del mensaje del usuario y lo guardamos en el estado
+    result["idioma"] = response.get("idioma", "es")
     return result

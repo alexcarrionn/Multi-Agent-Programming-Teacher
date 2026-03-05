@@ -1,5 +1,3 @@
-import os
-
 from database.repository import comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
@@ -40,6 +38,7 @@ if __name__ == "__main__":
     tablas_existen = tablas_existen();
     if not tablas_existen:
         create_tables()
+    
     #Bucle para poder identificar al usuario
     while True:
         user_input = input(_("WELCOME MESSAGE"))

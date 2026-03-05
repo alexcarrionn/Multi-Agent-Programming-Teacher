@@ -33,7 +33,7 @@ msgid "WELCOME MESSAGE"
 msgstr "Welcome to the teaching agent. Type 'login' to begin , 'register' to create an account or 'exit' to quit: "
 
 msgid "GOODBYE MESSAGE"
-msgstr "Exiting the teaching agent. See you soon!"
+msgstr "Leaving the teaching agent. See you soon!"
 
 msgid "INPUT MESSAGE"
 msgstr "Enter your message (or 'exit'): "

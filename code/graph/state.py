@@ -15,6 +15,7 @@ class AgentState(TypedDict):
     #informacion acerca del usuario
     user_level: Optional[str]
     alumno_id: Optional[int]
+    idioma: Optional[str]
 
     #Contexto RAG
     contexto: Optional[str]

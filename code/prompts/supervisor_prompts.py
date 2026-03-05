@@ -11,6 +11,9 @@ Además de decidir el agente, debes extraer del mensaje del usuario:
 - **codigo_alumno**: El código fuente que el alumno ha incluido en su mensaje. Si no hay código, devuelve una cadena vacía.
 
 Responde con la decisión del agente y la extracción de enunciado y código.
+
+Además, detecta el idioma del último mensaje del usuario:
+- **idioma**: "es" si el usuario escribe en español, "en" si escribe en inglés.
 """
 
 

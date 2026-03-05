@@ -1,20 +1,26 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from database.repository import guardar_progreso
-from prompts.critico_prompts import AGENTE_CRITICO_PROMPT
+from prompts.critico_prompts import AGENTE_CRITICO_PROMPT_ES, AGENTE_CRITICO_PROMPT_EN
 
 class CriticoAgent:
 
     def __init__(self, llm):
         # Inicializamos el agente con el prompt especifico y el llm
         self.llm = llm
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", AGENTE_CRITICO_PROMPT),
+
+    def _get_prompt(self, idioma):
+        """Selecciona el prompt en el idioma del usuario."""
+        prompt_text = AGENTE_CRITICO_PROMPT_EN if idioma == "en" else AGENTE_CRITICO_PROMPT_ES
+        return ChatPromptTemplate.from_messages([
+            ("system", prompt_text),
             MessagesPlaceholder(variable_name="mensajes"),
         ])
     #Funcion principal del agente, se encarga de recibir el estado actural y construir una respuesta utilizando el prompt y el llm
     def run(self, state):
+        #Seleccionamos el prompt en el idioma del usuario
+        prompt = self._get_prompt(state.get("idioma", "es"))
         #Construimos la cadena de procesamiento del agente, que incluye el prompt y el llm
-        chain = self.prompt | self.llm
+        chain = prompt | self.llm
         #Contruimos la respuesta del agente, incluyendo los mensajes previos, el nivel del usuario y el contexto relevante
         response = chain.invoke({
             "mensajes": state["mensajes"],
