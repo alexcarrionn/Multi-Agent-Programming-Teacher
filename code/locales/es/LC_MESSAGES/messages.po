@@ -65,8 +65,14 @@ msgstr  "Conectado a la base de datos: "
 msgid "DATABASE CONNECTION ERROR"
 msgstr "Error al conectar a la base de datos: "
 
+msgid "ALUMNO NOT FOUND"
+msgstr "Error el alumno no se encuentra en la base de datos"
+
 msgid "EMAIL ALREADY REGISTERED"
 msgstr "El email ya está registrado."
 
 msgid "ERROR SAVING PROGRESS"
 msgstr "Error al guardar el progreso del usuario en la base de datos"
+
+msgid "ERROR CHANGING LEVEL"
+msgstr "Error al cargar el nivel del alumno" 

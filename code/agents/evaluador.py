@@ -36,7 +36,6 @@ class EvaluadorAgent:
             "contexto": state.get("contexto", "No disponible")
         })
         #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las explicaciones que el agente considere relevantes para el usuario.
-        #El progreso se guarda en el agente critico, que es el ultimo nodo de la cadena evaluador -> critico
         return {
             "mensajes": [response],
             "puntuacion": response.content

@@ -63,10 +63,16 @@ msgid "DATABASE CONNECTION SUCCESSFULLY"
 msgstr  "Connected to the database:  "
 
 msgid "DATABASE CONNECTION ERROR"
-msgstr "Error connecting to the database:  "
+msgstr "Error connecting to the database: "
+
+msgid "ALUMNO NOT FOUND"
+msgstr "Error: The user is not found in the database."
 
 msgid "EMAIL ALREADY REGISTERED"
 msgstr "The email is already registered."
 
 msgid "ERROR SAVING PROGRESS"
 msgstr "Error saving user progress to the database."
+
+msgid "ERROR CHANGING LEVEL"
+msgstr "Error loading student level"

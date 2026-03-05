@@ -158,3 +158,26 @@ def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alu
         raise
     finally:
         session.close()  
+
+#definimos una nueva funcion para que los agentes puedan cambiar el nivel del alumno segun vean conveniente
+def cambio_nivel(nivel:str, alumno_id: int):
+    #conectamos a la base de datos MySQL utilizando la sesión de SQLAlchemy
+    session = SessionLocal()
+    try:
+        #buscamos el alumno con id a cambiar
+        alumno = session.query(Alumno).filter(Alumno.id == alumno_id).first()
+        #si se encuentra el alumno, se cambia el nivel de este. 
+        if alumno is not None:
+            alumno.nivel = nivel
+            session.commit()
+            session.refresh(alumno)
+            return alumno
+        #Si no se encuentra el alumno se lanza un mensaje de error. 
+        else:
+            raise ValueError(_("ALUMNO NOT FOUND"))
+    except Exception as e:
+        print(f"{_('ERROR CHANGING LEVEL')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
