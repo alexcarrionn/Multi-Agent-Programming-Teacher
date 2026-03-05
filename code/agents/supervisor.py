@@ -6,7 +6,6 @@ from typing import Literal
 from typing_extensions import TypedDict
 from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from database.repository import guardar_progreso
 
 
 #definimos nuestro llm

@@ -12,6 +12,7 @@ from agents.educador import EducadorAgent
 from agents.demostrador import DemostradorAgent
 from agents.critico import CriticoAgent
 from agents.evaluador import EvaluadorAgent
+from database.repository import guardar_progreso
 
 
 
@@ -24,6 +25,29 @@ llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 #PODEMOS UTILIZAR TAMB EL GEMINI 2.0 DE GOOGLE
 #from langchain_google_genai import ChatGoogleGenerativeAI
 #llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key="KEY")
+
+#Creamos otro nodo para poder guardar el progreso del alumno en la base de datos MySQL, este nodo se ejecuta despues 
+#del ciclo que se ejecuta entre el evaluador y el crítico, de esta forma nos aseguramos de que se guarda el progreso del 
+# alumno correctamente. 
+def nodo_guardar_progreso(state):
+    """Nodo que guarda el progreso del alumno en la base de datos tras la evaluación y crítica."""
+    alumno_id = state.get("alumno_id")
+    enunciado = state.get("enunciado")
+    codigo_alumno = state.get("codigo_alumno")
+    puntuacion = state.get("puntuacion")
+    feedback = state.get("feedback")
+    ambito_dificultad = state.get("user_level")
+
+    if alumno_id:
+        guardar_progreso(
+            alumno_id=alumno_id,
+            enunciado_ejercicio=enunciado,
+            codigo_alumno=codigo_alumno,
+            puntuacion_ejercicio=puntuacion,
+            retroalimentacion_ejercicio=feedback,
+            ambito_dificultad=ambito_dificultad
+        )
+    return {}
 
 def _build_graph():    
     """Construye y compila el grafo de estados del workflow."""
@@ -40,6 +64,7 @@ def _build_graph():
     graph_builder.add_node(AgentType.DEMOSTRADOR.value, demostrador_agent.run)
     graph_builder.add_node(AgentType.CRITICO.value, critico_agent.run)
     graph_builder.add_node(AgentType.EVALUADOR.value, evaluador_agent.run)
+    graph_builder.add_node("guardar_progreso", nodo_guardar_progreso)
 
     """Establecemos el punto de entrada del workflow, en este caso el supervisor es el encargado de recibir el mensaje del usuario y 
     ecidir a que agente enviar el mensaje dependiendo de lo que quiera hacer el usuario"""
@@ -63,9 +88,10 @@ def _build_graph():
     graph_builder.add_edge(AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value)
     graph_builder.add_edge(AgentType.DEMOSTRADOR.value, END)
 
-    #el critico puede pedirle al evaluador que evalúe el código del alumno y salir
+    #el evaluador evalúa el código y pasa al critico, que da feedback, y luego se guarda el progreso
     graph_builder.add_edge(AgentType.EVALUADOR.value, AgentType.CRITICO.value)
-    graph_builder.add_edge(AgentType.CRITICO.value, END)
+    graph_builder.add_edge(AgentType.CRITICO.value, "guardar_progreso")
+    graph_builder.add_edge("guardar_progreso", END)
     
     #añadimos memoria al grafo para que los agentes puedan recordar las interacciones anteriores
     memory = MemorySaver()

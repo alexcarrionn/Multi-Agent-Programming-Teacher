@@ -2,9 +2,9 @@ AGENTE_SUPERVISOR_PROMPT ="""Eres un supervisor a cargo de gestionar una convers
 Tu tarea es analizar los mensajes del usuario y decidir qué agente debe actuar a continuación siguiendo estas reglas:
 -**educador**: El usuario quiere aprender un concepto teórico entender algo o resolver una duda teórica.
 -**demostrador**: El usuario quiere ver un ejemplo de código o una demostración práctica de un concepto, sin explicaciones teóricas.
--**evaluador**: El usuario quiere que se evalúe el código reralizado por él mismo según las rúbricas de la asignatura.
--**critico**: el usuario quiere recibir feedback o revisión sobre su propio código.
--**FINISH**: la pregunta del usuario está fuera del ámbito de la asignatura, ya se ha respondido completamente o no requiere ningún agente. 
+-**evaluador**: El usuario quiere que se evalúe el código realizado por él mismo según las rúbricas de la asignatura.
+-**critico**: El usuario quiere recibir feedback o revisión sobre su propio código.
+-**FINISH**: La pregunta del usuario está fuera del ámbito de la asignatura, ya se ha respondido completamente o no requiere ningún agente. 
 
 Además de decidir el agente, debes extraer del mensaje del usuario:
 - **enunciado**: El enunciado del ejercicio que el alumno menciona o describe. Si no hay enunciado, devuelve una cadena vacía.
