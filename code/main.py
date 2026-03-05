@@ -1,4 +1,6 @@
-from database.repository import comprobacion_email, register_alumno, authenticate_alumno
+import os
+
+from database.repository import comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 
@@ -20,6 +22,7 @@ def registrar_alumno():
         password = input(_("INPUT PASSWORD"))
         nombre = input(_("INPUT NAME"))
         nivel = input(_("INPUT LEVEL"))
+        
         # Registramos al alumno en la base de datos MySQL
         try:
             register_alumno(email, password, nombre, nivel)
@@ -30,6 +33,13 @@ def registrar_alumno():
 
 #Funcion principal para ejecutar el workflow del agente docente
 if __name__ == "__main__":
+    #Primero creamos el SCHEMA de la base de datos donde van a estar las tablas de alumnos y progreso, si ya existe no hacemos nada
+    schema_exists()
+    #Despué tenemos que construir la base de datos mySql con la tabla de alumnos y progreso, para ello verficiamos primero si se existen ya el schema y las tablas
+    #Si no existen las creamos si existen no hacemos nada 
+    tablas_existen = tablas_existen();
+    if not tablas_existen:
+        create_tables()
     #Bucle para poder identificar al usuario
     while True:
         user_input = input(_("WELCOME MESSAGE"))

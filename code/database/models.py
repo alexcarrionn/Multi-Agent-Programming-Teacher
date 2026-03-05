@@ -1,7 +1,6 @@
 from sqlalchemy import Column, DateTime, Integer, String, ForeignKey
 from sqlalchemy.dialects.mysql import LONGTEXT as longText
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy.sql import func
 Base = declarative_base()
 """
 Aqui vamos a definir las tabalas que vamos a utilizar en la base de datos MySQL, 

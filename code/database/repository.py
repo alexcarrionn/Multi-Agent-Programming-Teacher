@@ -25,6 +25,17 @@ def create_tables():
     Base.metadata.create_all(bind=engine)
     print(_("TABLES CREATED SUCCESSFULLY"))
 
+
+#definimos una funcion para comprobar que las tablas existen en la base de datos MySQL
+def tablas_existen() -> bool:
+    session = SessionLocal()
+    try:
+        result = session.execute(text("SHOW TABLES;"))
+        tables = [row[0] for row in result.fetchall()]
+        return "alumnos" in tables and "progresos" in tables
+    finally:
+        session.close()
+
 #Comprobamos la conexión a la base de datos MySQL y mostramos el nombre de la base de datos a la que estamos conectados
 def check_connection():
     try:
@@ -37,6 +48,25 @@ def check_connection():
         print(f"{_('DATABASE CONNECTION ERROR')}: {e}")
         return False
 
+#Comprobamos si existe un schema (base de datos) con el nombre dado en MySQL
+from sqlalchemy import create_engine, text
+
+def schema_exists():
+    """Crea la base de datos si no existe."""
+    # conexión al servidor sin DB, primero conectamos con el servidor MYSQL
+    server_url = f"mysql+mysqlconnector://{settings.MYSQL_USER}:{settings.MYSQL_PASSWORD}@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}"
+    #creamos el engine para conectarnos al servidor MYSQL
+    engine = create_engine(server_url, echo=False)
+    try:
+        with engine.connect() as connection:
+            #Una vez nos conectamos, comprobamos si la base de datos existe, si no existe la creamos
+            connection.execute(
+                text(f"CREATE DATABASE IF NOT EXISTS {settings.MYSQL_DB}")
+            )
+            connection.commit()
+            return True
+    finally:
+        engine.dispose()
 
 #Funcion que nos va a servir para conseguir la conexion a la base de datos.
 def get_connection():
@@ -116,7 +146,7 @@ def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alu
             puntuacion_ejercicio=puntuacion_ejercicio,
             retroalimentacion_ejercicio=retroalimentacion_ejercicio,
             fecha_evaluacion=datetime.now(),
-            ambito_dificultad=ambito_dificultad\
+            ambito_dificultad=ambito_dificultad
         )
         session.add(progreso_alumno)
         session.commit()

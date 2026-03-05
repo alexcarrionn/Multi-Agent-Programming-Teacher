@@ -3,6 +3,6 @@ from enum import Enum
 class AgentType(str, Enum):
     SUPERVISOR = "supervisor"
     EDUCADOR = "educador"
-    DEMOSTRADOR = "demonstrador"
+    DEMOSTRADOR = "demostrador"
     EVALUADOR = "evaluador"
     CRITICO = "critico"
