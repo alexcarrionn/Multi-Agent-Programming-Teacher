@@ -1,5 +1,18 @@
+import re
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import AIMessage
 from prompts.evaluador_prompts import AGENTE_EVALUADOR_PROMPT_ES, AGENTE_EVALUADOR_PROMPT_EN
+from database.repository import cambio_nivel
+
+NIVELES_VALIDOS = {
+    "principiante": "principiante",
+    "intermedio": "intermedio",
+    "avanzado": "avanzado",
+    "beginner": "beginner",
+    "intermediate": "intermediate",
+    "advanced": "advanced",
+}
+
 
 class EvaluadorAgent:
 
@@ -35,8 +48,37 @@ class EvaluadorAgent:
             #coge el contexto adicional del estado, si no esta definido se asume que no hay contexto adicional relevante
             "contexto": state.get("contexto", "No disponible")
         })
-        #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las explicaciones que el agente considere relevantes para el usuario.
+        #Extraemos los metadatos de cambio de nivel con regex para mayor robustez, en esta parte lo que se va a hacer es 
+        #Extraer la informacion que no queremos del mensaje y poder saber si el agente ha decidido cambiar el nivel del alumno
+        contenido = response.content
+        cambio = False
+        nuevo_nivel_val = None
+        justificacion = None
+        #Extraemos la informacion de cambio de nivel utilizando expresiones regulares para buscar patrones específicos en el mensaje del agente
+        cambio_match = re.search(r"cambio_nivel\s*:\s*(true|false)", contenido, re.IGNORECASE)
+        nivel_match = re.search(r"nuevo_nivel\s*:\s*(.+)", contenido, re.IGNORECASE)
+        justificacion_match = re.search(r"justificacion_cambio_nivel\s*:\s*(.+)", contenido, re.IGNORECASE)
+        #Comprobamos si el agente ha indicado que se debe realizar el cambio de nivel y si el nuevo nivel es válido
+        if cambio_match and cambio_match.group(1).strip().lower() == "true" and nivel_match:
+            nivel_raw = nivel_match.group(1).strip().lower().rstrip(".")
+            nuevo_nivel_val = NIVELES_VALIDOS.get(nivel_raw)
+            #Si el nuevo nivel es valido se cambia en la base de datos
+            if nuevo_nivel_val:
+                cambio = True
+                justificacion = justificacion_match.group(1).strip() if justificacion_match else ""
+                cambio_nivel(nuevo_nivel_val, state["alumno_id"])
+
+        #Limpiamos los marcadores de control para que no sean visibles al alumno
+        contenido_limpio = re.sub(r"^-?\s*justificacion_cambio_nivel\s*:\s*.+$\n?", "", contenido, flags=re.MULTILINE)
+        contenido_limpio = re.sub(r"^-?\s*nuevo_nivel\s*:\s*.+$\n?", "", contenido_limpio, flags=re.MULTILINE)
+        contenido_limpio = re.sub(r"^-?\s*cambio_nivel\s*:\s*.+$\n?", "", contenido_limpio, flags=re.MULTILINE)
+        contenido_limpio = contenido_limpio.strip()
+
+        #Devolvemos la respuesta limpia y los campos de cambio de nivel para que se actualicen en el estado del grafo
         return {
-            "mensajes": [response],
-            "puntuacion": response.content
+            "mensajes": [AIMessage(content=contenido_limpio)],
+            "puntuacion": contenido_limpio,
+            "cambio_nivel": cambio,
+            "nuevo_nivel": nuevo_nivel_val,
+            "justificacion_cambio_nivel": justificacion,
         } 

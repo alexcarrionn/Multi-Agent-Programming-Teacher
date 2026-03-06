@@ -21,7 +21,7 @@ msgid "INPUT NAME"
 msgstr "Enter your name: "
 
 msgid "INPUT LEVEL"
-msgstr "Enter your level (beginner, intermediate, advanced, etc.): "
+msgstr "Enter your level (beginner, intermediate, advanced): "
 
 msgid "REGISTRATION SUCCESS"
 msgstr "Registration completed successfully."

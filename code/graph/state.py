@@ -32,14 +32,10 @@ class AgentState(TypedDict):
     codigo_alumno: Optional[str]
     enunciado: Optional[str]
 
-    #Control de flujo entre agentes
-    #agente_actual: Optional[str]
-    #necesita_demostraciones: Optional[bool]
-    #necesita_feedback: Optional[bool]
-    #finalizado: Optional[bool]
-    #error: Optional[str]
-
-
+    #Informacion acerca del nivel del alumno
+    cambio_nivel: Optional[bool]
+    nuevo_nivel: Optional[str]
+    justificacion_cambio_nivel: Optional[str]
 
 
 
