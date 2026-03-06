@@ -9,8 +9,11 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
 #definimos nuestro llm
-llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
+#llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 
+#Se puede definir con gemini 
+from langchain_google_genai import ChatGoogleGenerativeAI
+llm = ChatGoogleGenerativeAI(model=os.getenv("GOOGLE_MODEL"), google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
 
 # Miembros del equipo
 miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVALUADOR.value, AgentType.CRITICO.value]

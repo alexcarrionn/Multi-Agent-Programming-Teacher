@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy import create_engine, text
+
 from sqlalchemy.orm import sessionmaker
 from database.models import Base, Alumno, Progreso
 from database.hash_password import hash_password, verify_password
@@ -49,8 +50,6 @@ def check_connection():
         return False
 
 #Comprobamos si existe un schema (base de datos) con el nombre dado en MySQL
-from sqlalchemy import create_engine, text
-
 def schema_exists():
     """Crea la base de datos si no existe."""
     # conexión al servidor sin DB, primero conectamos con el servidor MYSQL

@@ -20,11 +20,11 @@ from database.repository import guardar_progreso
 load_dotenv(find_dotenv())
 
 #inicializamos el llm que vamos a usar en este caso llama-3.3-70b-versatilede  groq
-llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
+#llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 
-#PODEMOS UTILIZAR TAMB EL GEMINI 2.0 DE GOOGLE
-#from langchain_google_genai import ChatGoogleGenerativeAI
-#llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key="KEY")
+#PODEMOS UTILIZAR TAMB EL GEMINI 3.1 Flash Lite DE GOOGLE
+from langchain_google_genai import ChatGoogleGenerativeAI
+llm = ChatGoogleGenerativeAI(model=os.getenv("GOOGLE_MODEL"), google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
 
 #Creamos otro nodo para poder guardar el progreso del alumno en la base de datos MySQL, este nodo se ejecuta despues 
 #del ciclo que se ejecuta entre el evaluador y el crítico, de esta forma nos aseguramos de que se guarda el progreso del 
