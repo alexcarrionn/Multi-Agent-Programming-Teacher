@@ -22,6 +22,7 @@ def index_documents(text: str, source_id: str = "default", replace_existing_sour
 
     #si el semantic chunk no se ha podido crear, se hace un chunking tradicional utilizando el RecursiveCharacterTextSplitter.
     if not semantic_chunks:
+        #Se parte en fragmentos la documentacion
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
         semantic_chunks = text_splitter.create_documents([text])
     #aqui añadimos metadatos a los fragmentos semánticos

@@ -4,8 +4,6 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages 
 #En esta clase se define el estado del agente, que incluye los mensajes que se le han pasado, información sobre el usuario, contexto RAG, respuestas de los posibles agentes, información sobre la tarea actual y control de flujo entre agentes.
 
-groq_api_key = os.getenv("LLM_API_KEY")
-
 class AgentState(TypedDict):
 
     # Mensajes que se le ha pasado al agente. 

@@ -1,6 +1,13 @@
+import sys
+from pathlib import Path
+
+# Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from database.repository import comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
+from load_data import load_documents_from_folder
 
 #Configuramos la internacionalización para mostrar los mensajes en el idioma del usuario, en este caso español
 _= setup_i18n("es")
@@ -39,7 +46,11 @@ if __name__ == "__main__":
     tablas_existen = tablas_existen();
     if not tablas_existen:
         create_tables()
-    
+    #Una vez hecho la bbdd MySQL, metemos los documentos en la base de datos de vectores de QDrant 
+    data_root = Path(__file__).resolve().parent / "data"
+    #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
+    load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
+
     #Bucle para poder identificar al usuario
     while True:
         user_input = input(_("WELCOME MESSAGE"))

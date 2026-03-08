@@ -1,19 +1,17 @@
-import os
-
 from langchain_groq import ChatGroq
 from agents.agentType import AgentType
 from typing import Literal
 from typing_extensions import TypedDict
 from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
+from config.settings import settings
 
 #definimos nuestro llm
-#llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
+#llm = ChatGroq(model=settings.LLM_MODEL, temperature=0)
 
 #Se puede definir con gemini 
 from langchain_google_genai import ChatGoogleGenerativeAI
-llm = ChatGoogleGenerativeAI(model=os.getenv("GOOGLE_MODEL"), google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
+llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
 
 # Miembros del equipo
 miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVALUADOR.value, AgentType.CRITICO.value]

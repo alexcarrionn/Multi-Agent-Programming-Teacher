@@ -18,7 +18,7 @@ from agents.educador import EducadorAgent
 #llm = ChatGroq(model=os.getenv("LLM_MODEL"), temperature=0)
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-llm = ChatGoogleGenerativeAI(model=os.getenv("GOOGLE_MODEL"), google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
+llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
 
 # Creamos la instancia del agente educador
 educador = EducadorAgent(llm)

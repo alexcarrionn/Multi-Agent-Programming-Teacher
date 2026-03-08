@@ -15,12 +15,12 @@ load_dotenv(find_dotenv())
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 from agents.critico import CriticoAgent
-
+from config.settings import settings
 
 # Inicializamos el LLM y el agente
 #llm = ChatGroq(model=os.getenv("LLM_MODEL", "llama3-70b-8192"), temperature=0)
 from langchain_google_genai import ChatGoogleGenerativeAI
-llm = ChatGoogleGenerativeAI(model=os.getenv("GOOGLE_MODEL"), google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
+llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
 
 critico = CriticoAgent(llm)
 
