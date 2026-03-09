@@ -15,8 +15,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 from pypdf import PdfReader
 import docx
+import hashlib
 from rich.console import Console
 from rag.indexer import index_documents
+from langdetect import detect
+from config.settings import settings
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
 
 load_dotenv()
 console = Console()
@@ -35,14 +40,8 @@ if missing_vars:
 
 #Una vez que configuramos las variables de entorno, comprobramos que los docuemntos estan en español o el idioma en 
 # en el que se quiera trabajar. Para ello configuramos una header con el idioma, detectamos el idioma y lo hacemos
-headers_template = {
-    "Accept-Language": "es-ES,es;q=0.9"
-}
+EXPECTED_LANGUAGE = "es"  # Cambia esto si quieres trabajar con otro idioma
 
-#En ingles 
-#headers_template = {
-#    "Accept-Language": "en-US,en;q=0.9"
-#}
 
 def load_pdf(file_path):
     """Función para cargar un archivo PDF y devolver su contenido como texto."""
@@ -85,9 +84,13 @@ SUPPORTED_FORMATS = {
     #".xlsx": load_xlsx,
 }
 
+def create_hash(text: str) -> str:
+    """Funcion que se encarga de crear un hash a partir del texto del documento, para detectar cambios en el mismo."""
+    return hashlib.md5(text.encode("utf-8")).hexdigest()
+
 #Creamos el source id a partir de la ruta, data_root es la carpeta /data
 
-def create_source_id(file_path: Path, data_root: Path) -> str:
+def create_source_id(file_path: Path, data_root: Path, text:str) -> str:
     """ Esta funcion se va a encargar de crear el source id de cada documento para poder guardarlo en la base 
     de datos vectorial. Para ello se usará la ruta relativa del fichero. 
     Ejemplo: data/Intoduccion_programacion/temas/tema1.pdf -> Intoduccion_programacion/temas/tema1"""
@@ -102,7 +105,49 @@ def create_source_id(file_path: Path, data_root: Path) -> str:
         #Usamos la subcarpeta como prefijo y el nombre del fichero como sufijo
         subfolder = parts[0] # Obtenemos la subcarpeta
         name = file_path.stem # Obtenemos el nombre del fichero sin la extension
-        return f"{subfolder}_{name}"
+        hash_contenido = create_hash(text) # Creamos un hash del contenido del documento para detectar cambios en el mismo
+        return f"{subfolder}_{name}_{hash_contenido}" #devolvemos el source id con el hash del contenido por si se cambia el documento 
+
+#Funcion para detectar el idioma del texto del docuemnto 
+def detect_language(text: str) -> str:
+    #para simplicidad vamos a coger los primero 500 caracteres 
+    try:
+        return detect(text[:500])
+    except Exception as e:
+        console.print(f"[yellow]No se pudo detectar el idioma del texto: {e}[/yellow]")
+        return None
+
+
+#Funcion que cumprueba que se ha indexado con anterioridad un documento con el mismo source id. 
+def source_already_indexed(source_id: str) -> bool:
+    """Funcion que se encarga de comprobar si un documento con el mismo source_id ya ha sido indexado en QDrant."""
+    #Primero creamos el cliente de QDrant
+    client = QdrantClient(
+            url = settings.QDRANT_URL, 
+            api_key=settings.QDRANT_API_KEY,
+        )
+
+    #Si la coleccion no existe, no hay nada indexado
+    if not client.collection_exists(settings.QDRANT_COLLECTION):
+        return False
+
+    #Buscamos si existe algun documento con el mismo source_id en la coleccion, 
+    #para ello hacemos una consulta en la base de datos de QDrant
+    results, _ = client.scroll(
+    collection_name=settings.QDRANT_COLLECTION,
+    scroll_filter=models.Filter(
+        must=[
+            models.FieldCondition(
+                key="metadata.source_id",
+                match=models.MatchValue(value=source_id),
+            )
+        ]
+    ),
+    limit=1, # Solo necesitamos saber si hay al menos uno
+    )
+
+    return len(results) > 0
+
 
 #Hacemos una funcion para cargar un unico documento
 def load_document(file_path: Path, data_root: Path, replace_existing_source: bool = True) -> bool: 
@@ -121,9 +166,22 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
     if not texto or not texto.strip():
         console.print(f"[yellow]El documento {file_path.name} está vacío o no se pudo extraer texto.[/yellow]")
         return False
+    
+    # Comprobamos el idioma del texto para saber si se utiliza o no
+    idioma = detect_language(texto)
+    if idioma and idioma != EXPECTED_LANGUAGE:
+        console.print(f"[yellow]⚠ Idioma incorrecto ({idioma}), se omite: {file_path.name}[/yellow]")
+        return False
+    if idioma is None:
+        console.print(f"[dim]No se pudo detectar idioma en {file_path.name}, se indexa igualmente.[/dim]")
 
     #Creamos el source_id a partir de la ruta del documento
-    source_id = create_source_id(file_path, data_root)
+    source_id = create_source_id(file_path, data_root, texto)
+
+    #Comprobamos el indexado, si existe no hacemos nada.
+    if source_already_indexed(source_id): 
+        console.print(f"[blue]El documento {file_path.name} ya está indexado, se omite.[/blue]")
+        return True
 
     #Indexamos el documento en QDrant
     index_documents(text=texto, source_id=source_id, replace_existing_source=replace_existing_source)

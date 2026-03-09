@@ -47,9 +47,9 @@ if __name__ == "__main__":
     if not tablas_existen:
         create_tables()
     #Una vez hecho la bbdd MySQL, metemos los documentos en la base de datos de vectores de QDrant 
-    #data_root = Path(__file__).resolve().parent / "data"
+    data_root = Path(__file__).resolve().parent / "data"
     #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
-    #load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
+    load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
 
     #Bucle para poder identificar al usuario
     while True:
