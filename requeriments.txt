@@ -21,3 +21,4 @@ langchain_google_genai
 pypdf
 python-docx
 rich
+langchain_openai

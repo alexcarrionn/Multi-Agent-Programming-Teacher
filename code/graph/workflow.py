@@ -15,6 +15,8 @@ from agents.evaluador import EvaluadorAgent
 from database.repository import guardar_progreso
 from rag.retriever import create_retriever
 from config.settings import settings
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 
 
 
@@ -24,9 +26,11 @@ load_dotenv(find_dotenv())
 #inicializamos el llm que vamos a usar en este caso llama-3.3-70b-versatilede  groq
 #llm = ChatGroq(model=settings.LLM_MODEL, temperature=0)
 
-#PODEMOS UTILIZAR TAMB EL GEMINI 3.1 Flash Lite DE GOOGLE
-from langchain_google_genai import ChatGoogleGenerativeAI
-llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
+if settings.LLM_MODEL.startswith("gemini"):
+    llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
+elif settings.LLM_MODEL.startswith("gpt-oss"):
+#Se puede definir con gpt-oss
+    llm = ChatOpenAI(model=settings.LLM_MODEL, base_url=settings.LLM_URL, api_key=settings.LLM_API_KEY, temperature=0.2)
 
 #Creamos otro nodo para poder guardar el progreso del alumno en la base de datos MySQL, este nodo se ejecuta despues 
 #del ciclo que se ejecuta entre el evaluador y el crítico, de esta forma nos aseguramos de que se guarda el progreso del 
@@ -60,7 +64,6 @@ def rag_node(state):
     concepto = state.get("concepto", "")
     enunciado = state.get("enunciado", "")
     codigo_alumno = state.get("codigo_alumno", "")
-    intencion = state.get("intencion", "")
 
     #Una vez tenemos toda la información necesaria,. hacemos la consulta al retriever para obtener el contexto relevante
     query = "" 

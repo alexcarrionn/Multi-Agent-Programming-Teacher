@@ -5,13 +5,15 @@ from typing_extensions import TypedDict
 from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from config.settings import settings
-
-#definimos nuestro llm
-#llm = ChatGroq(model=settings.LLM_MODEL, temperature=0)
-
-#Se puede definir con gemini 
 from langchain_google_genai import ChatGoogleGenerativeAI
-llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
+from langchain_openai import ChatOpenAI
+
+#definimos nuestro llm según el modelo configurado
+if settings.LLM_MODEL.startswith("gemini"):
+    llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
+elif settings.LLM_MODEL.startswith("gpt"):
+    llm = ChatOpenAI(model=settings.LLM_MODEL, base_url=settings.LLM_URL, api_key=settings.LLM_API_KEY, temperature=0.2)
+#llm = ChatGroq(model=settings.LLM_MODEL, temperature=0)
 
 # Miembros del equipo
 miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVALUADOR.value, AgentType.CRITICO.value]
@@ -32,7 +34,10 @@ prompt_supervisor = ChatPromptTemplate.from_messages([
 #Funcion princiapl del supervisor, se encarga de recibir el estado actual y construir una respuesta utilizando el prompt y el llm
 def nodo_supervisor(state):
     #Construimos la cadena de procesamiento del supervisor, que incluye el prompt y el llm
-    chain = prompt_supervisor | llm.with_structured_output(Router)
+    if settings.LLM_MODEL.startswith("gpt"):
+        chain = prompt_supervisor | llm.with_structured_output(Router, method="json_mode")
+    else:
+        chain = prompt_supervisor | llm.with_structured_output(Router)
     #Contruimos la respuesta del supervisor, incluyendo los mensajes previos
     response = chain.invoke({
         "mensajes": state["mensajes"]

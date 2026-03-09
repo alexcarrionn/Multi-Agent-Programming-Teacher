@@ -10,10 +10,11 @@ Además de decidir el agente, debes extraer del mensaje del usuario:
 - **enunciado**: El enunciado del ejercicio que el alumno menciona o describe. Si no hay enunciado, devuelve una cadena vacía.
 - **codigo_alumno**: El código fuente que el alumno ha incluido en su mensaje. Si no hay código, devuelve una cadena vacía.
 
-Responde con la decisión del agente y la extracción de enunciado y código.
-
 Además, detecta el idioma del último mensaje del usuario:
-- **idioma**: "es" si el usuario escribe en español, "en" si escribe en inglés y así para todos los países, tienes que seguir la regla estandar es la BCP 47 (Best Current Practice 47), desarrollada por la IETF. .
+- **idioma**: "es" si el usuario escribe en español, "en" si escribe en inglés y así para todos los países, tienes que seguir la regla estandar es la BCP 47 (Best Current Practice 47), desarrollada por la IETF.
+
+Responde ÚNICAMENTE con un objeto JSON válido con exactamente estas claves, sin texto adicional ni markdown:
+{{"next_agent": "<agente o FINISH>", "enunciado": "<enunciado o cadena vacía>", "codigo_alumno": "<código o cadena vacía>", "idioma": "<código idioma>"}}
 """
 
 
