@@ -76,3 +76,9 @@ msgstr "Error saving user progress to the database."
 
 msgid "ERROR CHANGING LEVEL"
 msgstr "Error loading student level"
+
+msgid "FILE CHANGE DETECTED"
+msgstr "File changed updating data base."
+
+msgid "ERROR SAVING USERS"
+msgstr "Error saving authorized users to the database."

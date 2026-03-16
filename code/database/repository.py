@@ -2,14 +2,15 @@ from datetime import datetime
 from sqlalchemy import create_engine, text
 
 from sqlalchemy.orm import sessionmaker
-from database.models import Base, Alumno, Progreso
+from database.models import AlumnoAula, Base, Alumno, Progreso
 from database.hash_password import hash_password, verify_password
 from config.settings import settings
+from i18n import setup_i18n
 import os
 import pandas as pd
-from i18n import setup_i18n
 
-_= setup_i18n("es")
+_ = setup_i18n("es")
+
 # URL de conexión estándar de SQLAlchemy para MySQL
 DATABASE_URL = (
     f"mysql+mysqlconnector://{settings.MYSQL_USER}:{settings.MYSQL_PASSWORD}"
@@ -33,7 +34,7 @@ def tablas_existen() -> bool:
     try:
         result = session.execute(text("SHOW TABLES;"))
         tables = [row[0] for row in result.fetchall()]
-        return "alumnos" in tables and "progresos" in tables
+        return "alumnos" in tables and "progresos" in tables and "alumnos_aula" in tables
     finally:
         session.close()
 
@@ -126,11 +127,52 @@ def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) ->
     finally:
         session.close()    
 
-#Funcion en la que el agente supervisor va a comprobar que el email introducido por el alumno esta en el excel que el docente ha proporcionado con los alumnos autorizados para usar el agente docente, si el email no esta en ese excel el alumno no podra registrarse ni iniciar sesion
+#Funcion en la que el agente supervisor va a comprobar que el email introducido por el alumno esta en la base de datos creada con el excel
+#que el docente ha proporcionado con los alumnos autorizados para usar el agente docente, si el email no esta en esa bbdd 
+# el alumno no podra registrarse ni iniciar sesion
 def comprobacion_email(email: str) -> bool:
-    ruta = os.path.join(os.path.dirname(__file__), "..", "data", "alumnos_autorizados.xlsx")
-    df = pd.read_excel(ruta)
-    return email in df["Email"].values
+    #Antes se comprobaba que el email estaba en un excel, pero ahora se va a comrpobar en la base de datos MySQL, en la tabla AlumnoAula, que se ha rellenado previamente con los datos de los alumnos autorizados a usar el agente docente.
+    #ruta = os.path.join(os.path.dirname(__file__), "..", "data", "alumnos_autorizados.xlsx")
+    #df = pd.read_excel(ruta)
+    #return email in df["Correo"].values
+    session = SessionLocal()
+    try: 
+        alumno_aula = session.query(AlumnoAula).filter(AlumnoAula.email == email).first()
+        return alumno_aula is not None
+    finally:
+        session.close()  
+
+#Función para actualizar la base de datos MySQL
+def actualizar_base_datos(path: str):
+    session = SessionLocal()
+    try: 
+        df = pd.read_excel(path)
+        # Limpiamos la tabla AlumnoAula antes de insertar los nuevos datos
+        session.query(AlumnoAula).delete()
+        session.commit()
+        # Insertamos los nuevos datos del excel en la tabla AlumnoAula
+        for idx, row in df.iterrows():
+            nombre = None if pd.isna(row.get("Nombre")) else str(row.get("Nombre")).strip()
+            email = None if pd.isna(row.get("Correo electrónico")) else str(row.get("Correo electrónico")).strip()
+            dni = None if pd.isna(row.get("DNI")) else str(row.get("DNI")).strip()
+
+            # Nombre y email son obligatorios para evitar errores de integridad.
+            if not nombre or not email:
+                continue
+
+            alumno_aula = AlumnoAula(
+                nombre=nombre,
+                email=email,
+                dni=dni
+            )
+            session.add(alumno_aula)
+        session.commit()
+    except Exception as e:
+        print(f"{_("ERROR SAVING USERS")}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()  
 
 #Funcion que utilizaran los agentes evaluador y critico para guardar en la base de datos MySQL el progreso del alumno.
 def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alumno: str = None, puntuacion_ejercicio: str = None, retroalimentacion_ejercicio: str = None, ambito_dificultad: str = None): 

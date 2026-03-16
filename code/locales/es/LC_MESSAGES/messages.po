@@ -76,3 +76,9 @@ msgstr "Error al guardar el progreso del usuario en la base de datos"
 
 msgid "ERROR CHANGING LEVEL"
 msgstr "Error al cargar el nivel del alumno" 
+
+msgid "FILE CHANGE DETECTED"
+msgstr "Fichero modificado, actualizando base de datos"
+
+msgid "ERROR SAVING USERS"
+msgstr "Error al guardar los alumnos autorizados en la base de datos."

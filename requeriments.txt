@@ -23,3 +23,6 @@ python-docx
 rich
 langchain_openai
 langdetect
+fastapi
+uvicorn
+pydantic

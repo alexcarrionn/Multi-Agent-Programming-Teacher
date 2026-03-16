@@ -33,3 +33,16 @@ class Progreso(Base):
     ambito_dificultad = Column(String(255), nullable=True)
  
     alumno = relationship("Alumno", back_populates="progreso")
+
+
+class AlumnoAula(Base): 
+    """
+    Tabla que identifica a los alumnos para poder comprobar si tienen acceso al agente docente o no. Esta tabla se va a sacar a 
+    través de un proceso de estracción de datos del aula virtual, donde se entraerá un excel con el nombre del alumno, 
+    su email y el dni (no es obligatorio). 
+    """
+    __tablename__ = 'alumnos_aula'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False)
+    correo = Column(String(255), unique=True, nullable=False)
+    dni = Column(String(20), nullable=True)
