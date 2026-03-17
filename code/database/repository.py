@@ -130,14 +130,14 @@ def register_alumno(email: str, plain_password: str, nombre: str, nivel: str) ->
 #Funcion en la que el agente supervisor va a comprobar que el email introducido por el alumno esta en la base de datos creada con el excel
 #que el docente ha proporcionado con los alumnos autorizados para usar el agente docente, si el email no esta en esa bbdd 
 # el alumno no podra registrarse ni iniciar sesion
-def comprobacion_email(email: str) -> bool:
+def comprobacion_email(correo: str) -> bool:
     #Antes se comprobaba que el email estaba en un excel, pero ahora se va a comrpobar en la base de datos MySQL, en la tabla AlumnoAula, que se ha rellenado previamente con los datos de los alumnos autorizados a usar el agente docente.
     #ruta = os.path.join(os.path.dirname(__file__), "..", "data", "alumnos_autorizados.xlsx")
     #df = pd.read_excel(ruta)
     #return email in df["Correo"].values
     session = SessionLocal()
     try: 
-        alumno_aula = session.query(AlumnoAula).filter(AlumnoAula.email == email).first()
+        alumno_aula = session.query(AlumnoAula).filter(AlumnoAula.correo == correo).first()
         return alumno_aula is not None
     finally:
         session.close()  
@@ -168,7 +168,7 @@ def actualizar_base_datos(path: str):
             session.add(alumno_aula)
         session.commit()
     except Exception as e:
-        print(f"{_("ERROR SAVING USERS")}: {e}")
+        print(f"{_('ERROR SAVING USERS')}: {e}")
         session.rollback()
         raise
     finally:
