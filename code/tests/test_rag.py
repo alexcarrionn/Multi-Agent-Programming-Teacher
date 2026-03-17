@@ -101,6 +101,7 @@ def test_index_documents():
         index_documents(
             text=SAMPLE_TEXT,
             source_id="__test_rag__",
+            content_hash=None,
             replace_existing_source=True,
         )
         print("  Documento indexado con source_id='__test_rag__'.")

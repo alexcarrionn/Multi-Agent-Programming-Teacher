@@ -153,16 +153,16 @@ def actualizar_base_datos(path: str):
         # Insertamos los nuevos datos del excel en la tabla AlumnoAula
         for idx, row in df.iterrows():
             nombre = None if pd.isna(row.get("Nombre")) else str(row.get("Nombre")).strip()
-            email = None if pd.isna(row.get("Correo electrónico")) else str(row.get("Correo electrónico")).strip()
+            correo = None if pd.isna(row.get("Correo electrónico")) else str(row.get("Correo electrónico")).strip()
             dni = None if pd.isna(row.get("DNI")) else str(row.get("DNI")).strip()
 
-            # Nombre y email son obligatorios para evitar errores de integridad.
-            if not nombre or not email:
+            # Nombre y correo son obligatorios para evitar errores de integridad.
+            if not nombre or not correo:
                 continue
 
             alumno_aula = AlumnoAula(
                 nombre=nombre,
-                email=email,
+                correo=correo,
                 dni=dni
             )
             session.add(alumno_aula)

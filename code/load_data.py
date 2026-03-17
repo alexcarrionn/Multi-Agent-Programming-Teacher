@@ -20,7 +20,7 @@ from rich.console import Console
 from rag.indexer import index_documents
 from langdetect import detect
 from config.settings import settings
-from qdrant_client import QdrantClient
+from rag.qDrantClient import client
 from qdrant_client.http import models
 
 load_dotenv()
@@ -84,16 +84,19 @@ SUPPORTED_FORMATS = {
     #".xlsx": load_xlsx,
 }
 
+#funcion para crear un hash a partir del texto del documento, para detectar cambios en el mismo.
 def create_hash(text: str) -> str:
     """Funcion que se encarga de crear un hash a partir del texto del documento, para detectar cambios en el mismo."""
-    return hashlib.md5(text.encode("utf-8")).hexdigest()
+    #return hashlib.md5(text.encode("utf-8")).hexdigest()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
 
 #Creamos el source id a partir de la ruta, data_root es la carpeta /data
+def create_source_id(file_path: Path, data_root: Path) -> str:
+    """Crea un source_id estable a partir de la ruta del fichero.
 
-def create_source_id(file_path: Path, data_root: Path, text:str) -> str:
-    """ Esta funcion se va a encargar de crear el source id de cada documento para poder guardarlo en la base 
-    de datos vectorial. Para ello se usará la ruta relativa del fichero. 
-    Ejemplo: data/Intoduccion_programacion/temas/tema1.pdf -> Intoduccion_programacion/temas/tema1"""
+    Ejemplo: data/Introduccion_programacion/temas/tema1.pdf -> Introduccion_programacion_tema1
+    """
 
     ruta_relativa = file_path.relative_to(data_root)
     parts = list(ruta_relativa.parts) # Excluye la extensión y añade el nombre del archivo sin extensión
@@ -101,12 +104,11 @@ def create_source_id(file_path: Path, data_root: Path, text:str) -> str:
     if len(parts) == 1:
         #Quiere decir que el documento esta en la direccion /data directamente 
         return file_path.stem
-    else:
-        #Usamos la subcarpeta como prefijo y el nombre del fichero como sufijo
-        subfolder = parts[0] # Obtenemos la subcarpeta
-        name = file_path.stem # Obtenemos el nombre del fichero sin la extension
-        hash_contenido = create_hash(text) # Creamos un hash del contenido del documento para detectar cambios en el mismo
-        return f"{subfolder}_{name}_{hash_contenido}" #devolvemos el source id con el hash del contenido por si se cambia el documento 
+
+    #Usamos la subcarpeta como prefijo y el nombre del fichero como sufijo
+    subfolder = parts[0] # Obtenemos la subcarpeta
+    name = file_path.stem # Obtenemos el nombre del fichero sin la extension
+    return f"{subfolder}_{name}"
 
 #Funcion para detectar el idioma del texto del docuemnto 
 def detect_language(text: str) -> str:
@@ -119,17 +121,12 @@ def detect_language(text: str) -> str:
 
 
 #Funcion que cumprueba que se ha indexado con anterioridad un documento con el mismo source id. 
-def source_already_indexed(source_id: str) -> bool:
-    """Funcion que se encarga de comprobar si un documento con el mismo source_id ya ha sido indexado en QDrant."""
-    #Primero creamos el cliente de QDrant
-    client = QdrantClient(
-            url = settings.QDRANT_URL, 
-            api_key=settings.QDRANT_API_KEY,
-        )
+def get_indexed_content_hash(source_id: str) -> str | None:
+    """Recupera el content_hash guardado en Qdrant para un source_id concreto."""
 
     #Si la coleccion no existe, no hay nada indexado
     if not client.collection_exists(settings.QDRANT_COLLECTION):
-        return False
+        return None
 
     #Buscamos si existe algun documento con el mismo source_id en la coleccion, 
     #para ello hacemos una consulta en la base de datos de QDrant
@@ -143,12 +140,15 @@ def source_already_indexed(source_id: str) -> bool:
             )
         ]
     ),
+    # Todos los chunks de un documento comparten el mismo content_hash
     limit=1, # Solo necesitamos saber si hay al menos uno
     )
 
-    return len(results) > 0
+    if not results:
+        return None
 
-
+    metadata = results[0].payload.get("metadata", {}) if results[0].payload else {}
+    return metadata.get("content_hash")
 #Hacemos una funcion para cargar un unico documento
 def load_document(file_path: Path, data_root: Path, replace_existing_source: bool = True) -> bool: 
     """Funcion que se encarga de carga un único documento, extraer su texto e indexarlo en QDrant."""
@@ -175,16 +175,29 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
     if idioma is None:
         console.print(f"[dim]No se pudo detectar idioma en {file_path.name}, se indexa igualmente.[/dim]")
 
-    #Creamos el source_id a partir de la ruta del documento
-    source_id = create_source_id(file_path, data_root, texto)
+    #Creamos el source_id (estable por ruta) y el hash de contenido para detectar cambios
+    source_id = create_source_id(file_path, data_root)
+    content_hash = create_hash(texto)
+    indexed_hash = get_indexed_content_hash(source_id)
 
-    #Comprobamos el indexado, si existe no hacemos nada.
-    if source_already_indexed(source_id): 
-        console.print(f"[blue]El documento {file_path.name} ya está indexado, se omite.[/blue]")
+    #Si el hash es igual, no ha cambiado el documento
+    if indexed_hash == content_hash:
+        console.print(f"[blue]El documento {file_path.name} no ha cambiado, se omite.[/blue]")
         return True
 
+    #Si existe pero el hash difiere, eliminamos la versión anterior antes de reindexar
+    if indexed_hash is not None and indexed_hash != content_hash:
+        console.print(f"[yellow]Cambios detectados en {file_path.name}. Reindexando...[/yellow]")
+        eliminar_documentacion(file_path, data_root)
+
     #Indexamos el documento en QDrant
-    index_documents(text=texto, source_id=source_id, replace_existing_source=replace_existing_source)
+    index_documents(
+        text=texto,
+        source_id=source_id,
+        content_hash=content_hash,
+        replace_existing_source=replace_existing_source,
+        file_path=file_path,
+    )
     console.print(f"[green]Documento indexado correctamente: {file_path.name} (source_id: {source_id})[/green]")
     return True
 
@@ -215,7 +228,32 @@ def load_documents_from_folder(folder_path: Path, data_root: Path, replace_exist
 
     console.print(f"[bold green]Carga finalizada: {exitos} documentos indexados, {fallos} fallidos.[/bold green]")
 
+#Definimos una funcion para actualizar la documentacion 
+def actualizar_documentacion(file_path: Path, data_root: Path) -> None:
+    # Se delega en load_document para que compare hashes y solo reindexe cuando cambie contenido.
+    console.print(f"[blue]Documento modificado: {file_path}, verificando cambios...[/blue]")
+    load_document(file_path, data_root, True)
 
+#Definimos una funcion para añadir nueva documentacion
+def indexar_documentos(file_path: Path, data_root: Path) -> None:
+    #primero comprobamos que el documento exista
+    console.print(f"[blue]Nuevo documento encontrado en {file_path}...[/blue]")
+    #indexamos el nuevo documento en la base de datos de vectores de QDrant
+    load_document(file_path, data_root, True)
 
-
-
+#Definimos una funcion para eliminar documentacion
+def eliminar_documentacion(file_path: Path, data_root: Path) -> None: 
+    #eliminamos el documento de la base de datos de vectores QDrant
+    client.delete(
+        collection_name=settings.QDRANT_COLLECTION,
+        #se borra el documento que tenga el source_id correspondiente a la ruta del documento eliminado.
+        points_selector=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="metadata.source_id",
+                    match=models.MatchValue(value=create_source_id(file_path, data_root)),
+                )
+            ]
+        )
+    )  
+    console.print(f"[yellow]Documento eliminado: {file_path}[/yellow]")

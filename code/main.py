@@ -11,6 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from database.repository import comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
+from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
+
+DATA_PATH = Path(__file__).resolve().parent / "data" / "Introduccion_programacion"
+DATA_AUTORITHED_USER_PATH = Path(__file__).resolve().parent / "data" / "alumnos_autorizados.xlsx"
 
 #Configuramos la internacionalización para mostrar los mensajes en el idioma del usuario, en este caso español
 _= setup_i18n("es")
@@ -20,15 +24,38 @@ _= setup_i18n("es")
  sin necesidad de reiniciar el agente docente, simplemente modificando el excel y guardándolo, con la 
  condición de que el excel tenga la misma estructura que el original (con las columnas "Nombre", "Correo" y "DNI")."""
 
-DATA_PATH = Path(__file__).resolve().parent / "data" / "alumnos_autorizados.xlsx"
-
 def observar_cambios_archivos():
-    for changes in watch(DATA_PATH.parent):
+    for changes in watch(DATA_AUTORITHED_USER_PATH.parent):
         for change_type, path in changes:
             # En Windows, guardar desde Excel suele generar eventos added + modified.
-            if change_type in (Change.added, Change.modified) and Path(path).resolve()== DATA_PATH:
-                actualizar_base_datos(str(DATA_PATH))
+            if change_type in (Change.added, Change.modified) and Path(path).resolve()== DATA_AUTORITHED_USER_PATH:
+                actualizar_base_datos(str(DATA_AUTORITHED_USER_PATH))
 
+
+#Funcion para observar los cambios en la carpeta de DATA_PATH, para poder recargar los documentos en la base de datos vectorial de QDrant
+#cada vez que añadamos o modifiquemos un nuevo documento. 
+
+def observar_cambios_documentacion():
+    #tenemos que hacerlo de forma recursiva para observar los cambios en las subcarpetas de DATA_PATH
+    for changes in watch(DATA_PATH):
+        for change_type, path in changes:
+
+            file_path = Path(path).resolve()
+            
+            #Evitamos que sean ficheros que no sean aceptados por la funcion de carga de documentos.
+            if file_path.suffix.lower() not in SUPPORTED_FORMATS:
+                continue
+
+            if change_type == Change.added:
+                if not file_path.is_file():
+                    continue  # Ignorar cambios en directorios
+                indexar_documentos(file_path, DATA_PATH)
+            elif change_type == Change.modified:
+                if not file_path.is_file():
+                    continue  # Ignorar cambios en directorios
+                actualizar_documentacion(file_path, DATA_PATH)
+            elif change_type == Change.deleted:
+                eliminar_documentacion(file_path, DATA_PATH)
 
 #Definimos una funcion en la que se registre un usuario
 def registrar_alumno():
@@ -70,12 +97,18 @@ if __name__ == "__main__":
         create_tables()
 
     #Si existe el excel con los alumnos lo cargamos en la base de datos
-    if DATA_PATH.exists():
-        actualizar_base_datos(DATA_PATH)
+    if DATA_AUTORITHED_USER_PATH.exists():
+        actualizar_base_datos(DATA_AUTORITHED_USER_PATH)
     #Una vez hecho la bbdd MySQL, metemos los documentos en la base de datos de vectores de QDrant 
     #data_root = Path(__file__).resolve().parent / "data"
     #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
     #load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
+
+    #Ahora tenemos que crear otro hilo diferente para poder observar los cambios en la carpeta de data, para poder recargar 
+    # los documentos en la base de datos de vectores de QDrant cada vez que se añadan nuevos documentos o se modifiquen los existentes, 
+    # de esta forma el agente docente siempre tendra la información actualizada sin necesidad de reiniciar el programa.
+    hilo_observador_data = threading.Thread(target=observar_cambios_documentacion, daemon=True)
+    hilo_observador_data.start()
 
     #Bucle para poder identificar al usuario
     while True:
