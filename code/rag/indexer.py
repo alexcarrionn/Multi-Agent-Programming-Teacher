@@ -48,6 +48,15 @@ def index_documents(text: str, source_id: str = "default", content_hash: str | N
         except Exception:
             pass  # El índice ya existe
 
+        try:
+            client.create_payload_index(
+                collection_name=settings.QDRANT_COLLECTION,
+                field_name="metadata.content_hash",
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+        except Exception:
+            pass  # El índice ya existe
+
     #si la coleccion existe y tenemos que reemplazarla, eliminamos los puntos que correspondan a la fuente que estamos indexando
     if collection_exists and replace_existing_source:
         client.delete(

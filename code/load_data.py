@@ -131,17 +131,17 @@ def get_indexed_content_hash(source_id: str) -> str | None:
     #Buscamos si existe algun documento con el mismo source_id en la coleccion, 
     #para ello hacemos una consulta en la base de datos de QDrant
     results, _ = client.scroll(
-    collection_name=settings.QDRANT_COLLECTION,
-    scroll_filter=models.Filter(
-        must=[
-            models.FieldCondition(
-                key="metadata.source_id",
-                match=models.MatchValue(value=source_id),
-            )
-        ]
-    ),
-    # Todos los chunks de un documento comparten el mismo content_hash
-    limit=1, # Solo necesitamos saber si hay al menos uno
+        collection_name=settings.QDRANT_COLLECTION,
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="metadata.source_id",
+                    match=models.MatchValue(value=source_id),
+                )
+         ]
+        ),
+        # Todos los chunks de un documento comparten el mismo content_hash
+        limit=1, # Solo necesitamos saber si hay al menos uno
     )
 
     if not results:
@@ -149,6 +149,66 @@ def get_indexed_content_hash(source_id: str) -> str | None:
 
     metadata = results[0].payload.get("metadata", {}) if results[0].payload else {}
     return metadata.get("content_hash")
+
+
+def has_alternative_file_for_source(file_path: Path) -> bool:
+    """Comprueba si existe otro fichero soportado con el mismo stem en la misma carpeta.
+
+    Esto evita borrar en Qdrant un documento vigente cuando se elimina solo una variante
+    (por ejemplo, tema1.pdf eliminado pero tema1.txt sigue existiendo).
+    """
+    parent = file_path.parent
+    if not parent.exists() or not parent.is_dir():
+        return False
+
+    stem = file_path.stem
+    current_suffix = file_path.suffix.lower()
+
+    for extension in SUPPORTED_FORMATS:
+        if extension == current_suffix:
+            continue
+        candidate = parent / f"{stem}{extension}"
+        if candidate.exists() and candidate.is_file():
+            return True
+
+    return False
+
+#Definimos una funcon para comprobar que una colecion ya existe en QDrant
+def is_content_hash_indexed(content_hash: str) -> bool:
+    """Comprueba que el content_hash ya existe en cualquiera de los documentos indexados en Qdrant. 
+    Gracias a esto podemos evitar indexar documentos duplicados globales aunque tengan un source_id diferente."""
+    #Si la coleccion no existe, no hay nada indexado
+    if not client.collection_exists(settings.QDRANT_COLLECTION):
+        return None
+    try:
+        client.create_payload_index(
+            collection_name=settings.QDRANT_COLLECTION,
+            field_name="metadata.content_hash",
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+    except Exception:
+        # Si el índice ya existe (que será lo normal después de la primera vez), 
+        # lanzará una excepción que simplemente ignoramos.
+        pass
+    #Buscamos si existe algun documento con el mismo content_hash en la coleccion, 
+    #para ello hacemos una consulta en la base de datos de QDrant
+    results, _ = client.scroll(
+        collection_name=settings.QDRANT_COLLECTION,
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="metadata.content_hash",
+                    match=models.MatchValue(value=content_hash),
+                )
+         ]
+        ),
+        # Todos los chunks de un documento comparten el mismo content_hash
+        limit=1, # Solo necesitamos saber si hay al menos uno
+    )
+
+    return len(results) > 0
+
+
 #Hacemos una funcion para cargar un unico documento
 def load_document(file_path: Path, data_root: Path, replace_existing_source: bool = True) -> bool: 
     """Funcion que se encarga de carga un único documento, extraer su texto e indexarlo en QDrant."""
@@ -188,7 +248,12 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
     #Si existe pero el hash difiere, eliminamos la versión anterior antes de reindexar
     if indexed_hash is not None and indexed_hash != content_hash:
         console.print(f"[yellow]Cambios detectados en {file_path.name}. Reindexando...[/yellow]")
-        eliminar_documentacion(file_path, data_root)
+        eliminar_documentacion(file_path, data_root, expected_content_hash=indexed_hash)
+
+    #En una ruta nueva, pero el contenido es idéntico a otro archivo (Evitar duplicados)
+    elif indexed_hash is None and is_content_hash_indexed(content_hash):
+        console.print(f"[cyan]El contenido de {file_path.name} ya existe en la base de datos bajo otro nombre. Se omite para evitar duplicados.[/cyan]")
+        return True
 
     #Indexamos el documento en QDrant
     index_documents(
@@ -242,18 +307,59 @@ def indexar_documentos(file_path: Path, data_root: Path) -> None:
     load_document(file_path, data_root, True)
 
 #Definimos una funcion para eliminar documentacion
-def eliminar_documentacion(file_path: Path, data_root: Path) -> None: 
-    #eliminamos el documento de la base de datos de vectores QDrant
+def eliminar_documentacion(file_path: Path, data_root: Path, expected_content_hash: str | None = None) -> None:
+    """Elimina documentación de Qdrant con protección frente a borrados cruzados.
+
+    - Siempre filtra por source_id.
+    - Si se conoce expected_content_hash, también filtra por hash.
+    - En eventos de borrado de fichero, si existe una alternativa con el mismo stem
+      y distinto formato, no borra porque ese source_id sigue vigente.
+    """
+
+    #creamos el source_id a partir de la ruta del documento
+    source_id = create_source_id(file_path, data_root)
+    
+    if expected_content_hash is None:
+        expected_content_hash = get_indexed_content_hash(source_id)
+    # Si se elimina una variante pero existe otra con mismo source_id, no borrar en Qdrant.
+    if not file_path.exists() and has_alternative_file_for_source(file_path):
+        console.print(
+            f"[cyan]Se detectó otra variante activa para {source_id}; se omite el borrado de Qdrant.[/cyan]"
+        )
+        return
+    #primero comprobamos que el documento exista en la bbdd, para ello hacemos una consulta a la base de datos de QDrant con el source_id del documento
+    #Luego comprobamos que el hash del documento es del que queremos eliminar
+    # Evita mensajes de borrado engañosos si no hay nada que eliminar con el filtro actual.
+    results, _ = client.scroll(
+        collection_name=settings.QDRANT_COLLECTION,
+        scroll_filter=models.Filter(
+            must=[ models.FieldCondition(
+                    key="metadata.content_hash",
+                    match=models.MatchValue(value=expected_content_hash)),
+                
+                    models.FieldCondition(
+                        key="metadata.source_id",
+                         match=models.MatchValue(value=source_id),
+                 )
+            ]
+        ),
+        limit=1,
+    )
+
+    if not results:
+        console.print(f"[dim]No se encontró contenido a eliminar para {source_id}.[/dim]")
+        return
+
     client.delete(
         collection_name=settings.QDRANT_COLLECTION,
-        #se borra el documento que tenga el source_id correspondiente a la ruta del documento eliminado.
-        points_selector=models.Filter(
-            must=[
-                models.FieldCondition(
-                    key="metadata.source_id",
-                    match=models.MatchValue(value=create_source_id(file_path, data_root)),
-                )
-            ]
-        )
-    )  
+        points_selector=models.Filter(must=[ models.FieldCondition(
+                    key="metadata.content_hash",
+                    match=models.MatchValue(value=expected_content_hash)),
+                
+                    models.FieldCondition(
+                        key="metadata.source_id",
+                         match=models.MatchValue(value=source_id),
+                 )
+            ]),
+    )
     console.print(f"[yellow]Documento eliminado: {file_path}[/yellow]")

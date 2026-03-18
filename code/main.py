@@ -49,13 +49,13 @@ def observar_cambios_documentacion():
             if change_type == Change.added:
                 if not file_path.is_file():
                     continue  # Ignorar cambios en directorios
-                indexar_documentos(file_path, DATA_PATH)
+                indexar_documentos(file_path, DATA_PATH.parent)
             elif change_type == Change.modified:
                 if not file_path.is_file():
                     continue  # Ignorar cambios en directorios
-                actualizar_documentacion(file_path, DATA_PATH)
+                actualizar_documentacion(file_path, DATA_PATH.parent)
             elif change_type == Change.deleted:
-                eliminar_documentacion(file_path, DATA_PATH)
+                eliminar_documentacion(file_path, DATA_PATH.parent)
 
 #Definimos una funcion en la que se registre un usuario
 def registrar_alumno():
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     hilo_observador.start()
     #Primero creamos el SCHEMA de la base de datos donde van a estar las tablas de alumnos y progreso, si ya existe no hacemos nada
     schema_exists()
-    #Despué tenemos que construir la base de datos mySql con la tabla de alumnos y progreso, para ello verficiamos primero si se existen ya el schema y las tablas
+    #Después tenemos que construir la base de datos mySql con la tabla de alumnos y progreso, para ello verficiamos primero si se existen ya el schema y las tablas
     #Si no existen las creamos si existen no hacemos nada 
     existen_tablas = tablas_existen()
     if not existen_tablas:
@@ -100,9 +100,9 @@ if __name__ == "__main__":
     if DATA_AUTORITHED_USER_PATH.exists():
         actualizar_base_datos(DATA_AUTORITHED_USER_PATH)
     #Una vez hecho la bbdd MySQL, metemos los documentos en la base de datos de vectores de QDrant 
-    #data_root = Path(__file__).resolve().parent / "data"
+    data_root = Path(__file__).resolve().parent / "data"
     #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
-    #load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
+    load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
 
     #Ahora tenemos que crear otro hilo diferente para poder observar los cambios en la carpeta de data, para poder recargar 
     # los documentos en la base de datos de vectores de QDrant cada vez que se añadan nuevos documentos o se modifiquen los existentes, 
