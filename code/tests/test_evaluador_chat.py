@@ -12,9 +12,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
-from langchain_groq import ChatGroq
+#from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 from agents.evaluador import EvaluadorAgent
+from config.settings import settings
 
 
 # Inicializamos el LLM y el agente

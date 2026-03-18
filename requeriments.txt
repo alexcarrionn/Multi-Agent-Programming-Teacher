@@ -1,10 +1,8 @@
-langchain-core
-langchain-groq               
+langchain-core              
 langchain-huggingface          
 langchain-experimental        
 langchain-text-splitters       
-langchain-qdrant
-langchain_groq         
+langchain-qdrant        
 langgraph                      
 qdrant-client            
 sentence-transformers 
@@ -18,6 +16,7 @@ i18n
 polib
 openpyxl
 langchain_google_genai
+langchain_ollama
 pypdf
 python-docx
 rich

@@ -12,10 +12,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
-from langchain_groq import ChatGroq
+#from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
 from agents.demostrador import DemostradorAgent
-
+from config.settings import settings
 
 # Inicializamos el LLM y el agente
 #llm = ChatGroq(model=os.getenv("LLM_MODEL", "llama3-70b-8192"), temperature=0)

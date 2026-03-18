@@ -12,6 +12,7 @@ load_dotenv(find_dotenv())
 
 from langchain_groq import ChatGroq
 from agents.evaluador import EvaluadorAgent
+import config.settings as settings
 
 
 # Inicializamos el LLM y el agente
