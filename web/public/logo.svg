@@ -1,0 +1,21 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563EB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- O -->
+  <circle cx="80" cy="100" r="50" stroke="url(#grad1)" stroke-width="20" fill="none"/>
+
+  <!-- C -->
+  <path d="M 155,65 
+           A 50,50 0 1,0 155,135" 
+        stroke="url(#grad1)" 
+        stroke-width="20" 
+        fill="none" 
+        stroke-linecap="round"/>
+  <!-- Núcleo IA -->
+  <circle cx="100" cy="100" r="8" fill="#22C55E"/>
+</svg>

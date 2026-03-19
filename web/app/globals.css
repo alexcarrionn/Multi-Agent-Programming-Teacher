@@ -82,6 +82,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Dark theme overrides */
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -116,6 +117,16 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/*Tipografía*/
+@font-face {
+  font-family: "Geist Sans";
+  src: url("/fonts/GeistSans-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  font-variation-settings: "wght" 400;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -125,5 +136,11 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@media (max-width: 768px) {
+  textarea {
+    resize: none;
   }
 }
