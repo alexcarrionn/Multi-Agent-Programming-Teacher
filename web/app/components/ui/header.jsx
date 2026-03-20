@@ -1,0 +1,107 @@
+"use client"; // Necesario porque usamos componentes interactivos de Headless UI
+
+import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/app/components/ui/button";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { BellIcon } from "@heroicons/react/24/outline";
+
+export default function Header() {
+  // TODO: Conectar esto con tu contexto de autenticación real más adelante.
+  // Por ahora, cambia esto a 'true' para ver el menú de usuario logueado.
+  const [isLoggedIn, setIsLoggedIn] = useState(false); 
+
+  // Función de ejemplo para cerrar sesión
+  const handleLogout = () => {
+    // Aquí iría la lógica para borrar cookies/tokens
+    setIsLoggedIn(false);
+  };
+
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
+      {/* LADO IZQUIERDO: Logo y Título */}
+      <Link href="/" className="flex items-center gap-3">
+        <Image src="/logo.svg" alt="Logo" width={36} height={36} priority />
+        <span className="text-2xl font-bold text-gray-800">Codi</span>
+      </Link>
+
+      {/* LADO DERECHO: Condicional (Logueado vs No Logueado) */}
+      <div className="flex items-center gap-4">
+        {!isLoggedIn ? (
+          // Vista para usuarios NO logueados (Tus botones originales)
+          <>
+            <Button asChild variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50">
+              <Link href="/auth/login">Iniciar sesión</Link>
+            </Button>
+            <Button asChild variant="outline" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Link href="/auth/register">Registrarse</Link>
+            </Button>
+          </>
+        ) : (
+          // Vista para usuarios LOGUEADOS (Menú con Headless UI)
+          <>
+            {/* Botón de notificaciones */}
+            <button
+              type="button"
+              className="relative rounded-full p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <span className="sr-only">Ver notificaciones</span>
+              <BellIcon aria-hidden="true" className="size-6" />
+            </button>
+
+            {/* Dropdown del perfil de usuario */}
+            <Menu as="div" className="relative ml-1">
+              <MenuButton className="relative flex rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <span className="sr-only">Abrir menú de usuario</span>
+                <Image
+                  alt="Avatar del usuario"
+                  src="public/usuario.png"
+                  width={36}
+                  height={36}
+                  className="rounded-full border border-gray-200"
+                />
+              </MenuButton>
+
+              <MenuItems
+                transition
+                className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[enter]:ease-out data-[leave]:duration-75 data-[leave]:ease-in"
+              >
+                <MenuItem>
+                  {({ active }) => (
+                    <Link
+                      href="/perfil"
+                      className={`block px-4 py-2 text-sm ${active ? "bg-gray-100 text-gray-900" : "text-gray-700"}`}
+                    >
+                      Tu perfil
+                    </Link>
+                  )}
+                </MenuItem>
+                <MenuItem>
+                  {({ active }) => (
+                    <Link
+                      href="/ajustes"
+                      className={`block px-4 py-2 text-sm ${active ? "bg-gray-100 text-gray-900" : "text-gray-700"}`}
+                    >
+                      Ajustes
+                    </Link>
+                  )}
+                </MenuItem>
+                <MenuItem>
+                  {({ active }) => (
+                    <button
+                      onClick={handleLogout}
+                      className={`block w-full text-left px-4 py-2 text-sm ${active ? "bg-red-50 text-red-700" : "text-gray-700"}`}
+                    >
+                      Cerrar sesión
+                    </button>
+                  )}
+                </MenuItem>
+              </MenuItems>
+            </Menu>
+          </>
+        )}
+      </div>
+    </header>
+  );
+}

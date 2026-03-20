@@ -9,8 +9,8 @@ export default function WelcomeScreen({ onSuggestionClick }) {
   };
 
   return (
-    <section className="flex-1 flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-3xl text-center">
+    <section className="w-full flex items-center justify-center px-6 py-6">
+      <div className="w-full max-w-3xl text-center ">
         <Image src="/logo.svg" alt="Logo" width={60} height={50} priority className="mx-auto" />
         <h1 className="text-4xl font-bold text-blue-600">Bienvenido a Codi</h1>
         <p className="mt-4 text-lg text-gray-700">

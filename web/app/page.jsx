@@ -2,7 +2,7 @@
 "use client"; // Necesario porque ahora usamos estados interactivos (useState)
 
 import { useState } from "react";
-import Header from "./components/header";
+import Header from "./components/ui/header";
 import ChatArea from "./components/chat/ChatArea";
 
 export default function Home() {
@@ -13,14 +13,14 @@ export default function Home() {
 
   // Función que se ejecuta al enviar un mensaje
   const handleSendMessage = (content) => {
-    // 1. Añadimos el mensaje del usuario a la lista
+    // Añadimos el mensaje del usuario a la lista
     const newUserMessage = { role: "user", content };
     setMessages((prev) => [...prev, newUserMessage]);
     
-    // 2. Simulamos que Codi está escribiendo
+    // Simulamos que Codi está escribiendo
     setIsLoading(true);
 
-    // 3. Simulamos una respuesta de la IA después de 1.5 segundos
+    //Simulamos una respuesta de la IA después de 1.5 segundos
     setTimeout(() => {
       const botResponse = { 
         role: "bot", 
