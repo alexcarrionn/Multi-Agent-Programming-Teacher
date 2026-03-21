@@ -6,9 +6,24 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import axios from "axios";
 import Image from "next/image";
+import { sileo } from "sileo";
 
 export default function Register() {
   const router = useRouter();
+
+  const getErrorMessage = (err) => {
+    if (!err) return "Ha ocurrido un error.";
+    if (typeof err === "string") return err;
+    if (axios.isAxiosError(err)) {
+      return (
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        "Error de red o del servidor."
+      );
+    }
+    return "Ha ocurrido un error.";
+  };
 
   // Estado unificado para todos los campos del registro
   const [input, setInput] = useState({
@@ -28,13 +43,22 @@ export default function Register() {
   };
 
   const handleError = (err) => {
-    console.error("Error:", err);
-    toast.error(err); // Descomenta cuando uses toast
+    const description = getErrorMessage(err);
+    sileo.error({
+      title: "Error",
+      description,
+    });
+    if (err) {
+      console.error("Error:", err);
+    }
   };
 
   const handleSuccess = (msg) => {
+    sileo.success({
+      title: "Registro completado",
+      description: msg || "Tu cuenta se ha creado correctamente.",
+    });
     console.log("Éxito:", msg);
-    toast.success(msg); // Descomenta cuando uses toast
   };
 
   const handleSubmit = async (e) => {
@@ -48,7 +72,7 @@ export default function Register() {
 
     try {
       const { data } = await axios.post(
-        "http://localhost:3000/auth/register",
+        "http://localhost:8000/api/register",
         {
           nombre: input.nombre,
           email: input.email,
@@ -58,19 +82,13 @@ export default function Register() {
         { withCredentials: true }
       );
 
-      const { success, message } = data;
-
-      if (success) {
-        handleSuccess(message || "Registro exitoso");
-        setTimeout(() => {
-          router.push("/auth/login"); // Redirigimos al login tras el registro
-        }, 1500);
-      } else {
-        handleError(message);
-      }
+      const message = data?.message;
+      handleSuccess(message || "Registro exitoso");
+      setTimeout(() => {
+        router.push("/auth/login"); // Redirigimos al login tras el registro
+      }, 1500);
     } catch (error) {
-      console.log(error);
-      handleError("Ocurrió un error al intentar registrarte.");
+      handleError(error);
     }
 
     // Limpiamos los campos (opcional si redirigimos rápido)
@@ -189,7 +207,10 @@ export default function Register() {
 
           {/* Botones */}
           <div className="flex flex-col gap-3 mt-4">
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-sm transition-colors">
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-sm transition-colors">
+
               Registrarse
             </Button>
 

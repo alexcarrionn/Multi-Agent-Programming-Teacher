@@ -42,4 +42,9 @@ class Settings:
     #-- Configuracion de embeddings --
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 
+    #-- Configuracion del Frontend --
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET")
+    JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+    JWT_EXPIRATION = int(os.getenv("JWT_EXPIRATION")) # Expiración en minutos
+
 settings = Settings()

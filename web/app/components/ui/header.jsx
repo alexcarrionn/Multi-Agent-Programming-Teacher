@@ -1,22 +1,39 @@
 "use client"; // Necesario porque usamos componentes interactivos de Headless UI
 
-import { useState } from "react";
+import { useAuth } from "@/app/context/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { BellIcon } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
   // TODO: Conectar esto con tu contexto de autenticación real más adelante.
   // Por ahora, cambia esto a 'true' para ver el menú de usuario logueado.
-  const [isLoggedIn, setIsLoggedIn] = useState(false); 
+  const { user, loading ,logout } = useAuth();
+  const router = useRouter();
+
 
   // Función de ejemplo para cerrar sesión
-  const handleLogout = () => {
+  const handleLogout = async () => {
     // Aquí iría la lógica para borrar cookies/tokens
-    setIsLoggedIn(false);
+    await logout();
+    router.push("/");
   };
+
+const isLoggedIn = !!user; // Simula el estado de carga
+
+if(loading) {
+  return (
+  <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
+        <Link href="/" className="flex items-center gap-3">
+          <Image src="/logo.svg" alt="Logo" width={36} height={36} priority />
+          <span className="text-2xl font-bold text-gray-800">Codi</span>
+        </Link>
+      </header>
+    );
+}
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
@@ -56,7 +73,7 @@ export default function Header() {
                 <span className="sr-only">Abrir menú de usuario</span>
                 <Image
                   alt="Avatar del usuario"
-                  src="public/usuario.png"
+                  src="/usuario.png"
                   width={36}
                   height={36}
                   className="rounded-full border border-gray-200"

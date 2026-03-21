@@ -6,10 +6,27 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button"; 
 import axios from "axios";
 import Image from "next/image"; // Importamos Image para poner el logo de Codi
-import { Toast } from "radix-ui";
+import { sileo } from "sileo";
+import { useAuth } from "@/app/context/AuthContext";
 
-export default function Login() {
+export default function Login()
+ {
+  const { setUser } = useAuth();
   const router = useRouter();
+
+  const getErrorMessage = (err) => {
+    if (!err) return "Ha ocurrido un error.";
+    if (typeof err === "string") return err;
+    if (axios.isAxiosError(err)) {
+      return (
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        "Error de red o del servidor."
+      );
+    }
+    return "Ha ocurrido un error.";
+  };
 
   const [input, setInput] = useState({
     email: "",
@@ -25,47 +42,41 @@ export default function Login() {
   };
 
   const handleError = (err) => {
-    Toast.error(err); // Usamos el componente Toast para mostrar errores de forma más elegante
-    console.error("Error:", err);
+    const description = getErrorMessage(err);
+    sileo.error({
+      title: "Error",
+      description,
+    });
+    if (err) {
+      console.error("Error:", err);
+    }
   };
 
   const handleSuccess = (msg) => {
-    Toast.success(msg); // Usamos el componente Toast para mostrar mensajes de éxito de forma más elegante
+    sileo.success({
+      title: "Inicio de sesión correcto",
+      description: msg || "Bienvenido de nuevo.",
+    });
     console.log("Éxito:", msg);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
-      const { data } = await axios.post(
-        "http://localhost:3000/auth/login",
-        {
-          email: input.email,
-          password: input.password,
-        },
-        { withCredentials: true }
-      );
+      await axios.post("http://localhost:8000/api/login", {
+        email: input.email,
+        password: input.password,
+      }, { withCredentials: true });
 
-      const { success, message } = data;
+      // Cargamos los datos del usuario desde /api/me
+      const { data } = await axios.get("http://localhost:8000/api/me", { withCredentials: true });
+      setUser(data);
 
-      if (success) {
-        handleSuccess(message);
-        setTimeout(() => {
-          router.push("/");
-        }, 1000);
-      } else {
-        handleError(message);
-      }
+      handleSuccess("Bienvenido de nuevo.");
+      setTimeout(() => router.push("/"), 1000);
     } catch (error) {
-      console.log(error);
-      handleError("Ocurrió un error al conectar con el servidor.");
+      handleError(error);
     }
-
-    setInput({
-      email: "",
-      password: "",
-    });
   };
 
   return (

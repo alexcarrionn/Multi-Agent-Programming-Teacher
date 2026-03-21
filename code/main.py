@@ -1,14 +1,18 @@
 import sys
 from pathlib import Path
+from fastapi import Depends, FastAPI, HTTPException, Response
+from pydantic import BaseModel
 from watchfiles  import watch, Change
 import threading
-import time
-from database.repository import actualizar_base_datos
+from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from database.repository import comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
+from auth.auth import create_access_token, get_current_user
+from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
@@ -57,91 +61,115 @@ def observar_cambios_documentacion():
             elif change_type == Change.deleted:
                 eliminar_documentacion(file_path, DATA_PATH.parent)
 
-#Definimos una funcion en la que se registre un usuario
-def registrar_alumno():
-    email = input(_("INPUT EMAIL"))
-    #Primero comprobamos que el email es de la um 
-    if not email.endswith("@um.es"):
-        print(_("ERROR EMAIL NOT FROM UM"))
-        return
-    #Comprobamos que el email este en la base de datos puesto por el docente
-    comprobacion = comprobacion_email(email)
-    if not comprobacion:
-        print(_("ERROR EMAIL NOT AUTHORIZED"))
-        return
-    else: 
-        password = input(_("INPUT PASSWORD"))
-        nombre = input(_("INPUT NAME"))
-        nivel = input(_("INPUT LEVEL"))
-        
-        # Registramos al alumno en la base de datos MySQL
-        try:
-            register_alumno(email, password, nombre, nivel)
-            print(_("REGISTRATION SUCCESS"))
-        except ValueError as e:
-            print(_("REGISTRATION ERROR") + f" {e}")
 
 
-#Funcion principal para ejecutar el workflow del agente docente
-if __name__ == "__main__":
-    #En un hilo aprate al principal, observamos los cambios en el excel de los alumnos autorizados
-    #con daemon se cerrara automáticamente el hilo cuando se cierre el progrma principal.
-    hilo_observador = threading.Thread(target=observar_cambios_archivos, daemon=True)
-    hilo_observador.start()
-    #Primero creamos el SCHEMA de la base de datos donde van a estar las tablas de alumnos y progreso, si ya existe no hacemos nada
+
+#Funcion principal que se encargará de manejar el ciclo de vida de la app para los hilos del observador de cambios en los archivos y el stream de actualizaciones del grafo de conocimiento.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    #indicamos que se ha iniciado el servidor
+    print(_("SERVER STARTED"))
+
+    #Comprobamos que las tablas de la base de datos MySQL existen, si no existen las creamos
     schema_exists()
     #Después tenemos que construir la base de datos mySql con la tabla de alumnos y progreso, para ello verficiamos primero si se existen ya el schema y las tablas
     #Si no existen las creamos si existen no hacemos nada 
-    existen_tablas = tablas_existen()
-    if not existen_tablas:
+    if not tablas_existen():
         create_tables()
+    
+    print (_("INITIALIZE THREADS"))
+    #Ahora inicializamos los hilos observadores 
+    hilo_observador_alumnos = threading.Thread(target=observar_cambios_archivos, daemon=True)
+    hilo_observador_documentacion = threading.Thread(target=observar_cambios_documentacion, daemon=True)
+    hilo_observador_alumnos.start()
+    hilo_observador_documentacion.start()
 
-    #Si existe el excel con los alumnos lo cargamos en la base de datos
-    if DATA_AUTORITHED_USER_PATH.exists():
-        actualizar_base_datos(DATA_AUTORITHED_USER_PATH)
-    #Una vez hecho la bbdd MySQL, metemos los documentos en la base de datos de vectores de QDrant 
-    data_root = Path(__file__).resolve().parent / "data"
-    #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
-    load_documents_from_folder(data_root / "Introduccion_programacion", data_root)
+    #Ahora el servidor le cede el control y se pone a escuchar peticiones 
+    yield
 
-    #Ahora tenemos que crear otro hilo diferente para poder observar los cambios en la carpeta de data, para poder recargar 
-    # los documentos en la base de datos de vectores de QDrant cada vez que se añadan nuevos documentos o se modifiquen los existentes, 
-    # de esta forma el agente docente siempre tendra la información actualizada sin necesidad de reiniciar el programa.
-    hilo_observador_data = threading.Thread(target=observar_cambios_documentacion, daemon=True)
-    hilo_observador_data.start()
+#Creamos la Api con FastApi
+app = FastAPI(
+    title="Codi - Agente Docente de Programación",
+    description="BackEnd para el agente educador",
+    lifespan=lifespan
+)
 
-    #Bucle para poder identificar al usuario
-    while True:
-        user_input = input(_("WELCOME MESSAGE"))
-        if user_input.lower() == _("EXIT"):
-            print(_("GOODBYE MESSAGE"))
-            break
-        elif user_input.lower() == _("REGISTER"):
-           registrar_alumno()
-        elif user_input.lower() == _("LOGIN"):
-            email = input(_("INPUT EMAIL"))
-            password = input(_("INPUT PASSWORD"))
+#configuramos CORS para permitir peticiones desde el frontend, en este caso desde localhost:3000, pero esto se puede cambiar cuando se despliegue el frontend en producción
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Cambiar esto por el dominio de tu frontend en producción
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+#Definimos una funcion en la que se registre un usuario
+class AlumnoCreate(BaseModel):
+    nombre: str
+    email: str
+    password: str
+    nivel: str
 
-            # Validamos las credenciales contra la base de datos MySQL
-            alumno = authenticate_alumno(email, password)
-            if alumno is None:
-                print(_("ERROR INVALID CREDENTIALS"))
-                continue
 
-            print(_("WELCOME USER") + f" {alumno.nombre}\n")
+@app.post("/api/register")
+async def registrar_alumno(datos: AlumnoCreate):
 
-            # Usamos el email como thread_id para persistir la conversación por alumno
-            thread_id = alumno.email
-            user_level = alumno.nivel
-            alumno_id = alumno.id
-            # Bucle de conversación para el alumno autenticado
-            while True:
-                user_input = input(_("INPUT MESSAGE"))
-                if user_input.lower() == _("EXIT"):
-                    print(_("GOODBYE MESSAGE"))
-                    break
-                
-                stream_graph_updates(user_input, thread_id, user_level, alumno_id)
-            break
-        else: 
-            print(_("INVALID OPTION MESSAGE"))
+    """Esta funcion recibirá los datos de registro del alumno desde el frontend, comprobará el email y si es correcto lo registrará"""
+    if not datos.email.endswith("@um.es"):
+       raise HTTPException(status_code=400, detail=_("ERROR INVALID EMAIL DOMAIN"))
+    
+    #Ponemos la logica de comprobacion de email autorizado 
+    if not comprobacion_email(datos.email):
+        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT AUTHORIZED"))
+    
+    #Si el email es correcto y esta autorizado, registramos al alumno en la base de datos MySQL
+    try: 
+        register_alumno(email=datos.email, plain_password=datos.password, nombre=datos.nombre, nivel=datos.nivel)
+        return {"message": _("REGISTRATION SUCCESS")}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("REGISTRATION ERROR") + f": {str(e)}")
+
+class AlumnoLogin(BaseModel):
+    email: str
+    password: str
+
+#definimos la funcion que comprobará las credenciales del alumno para poder iniciar sesión, ademas 
+# usaremos el token del alumno para mantener la sesión iniciada y poder mostrar su progreso y personalizar su experiencia.
+@app.post("/api/login")
+def login_alumno(datos: AlumnoLogin, response: Response):
+    """Esta funcion se encargará de autenticar al alumno y devolver un token de acceso para mantener la sesión iniciada"""
+    alumno = authenticate_alumno(datos.email, datos.password)
+    if not alumno:
+        raise HTTPException(status_code=401, detail=_("ERROR INVALID CREDENTIALS"))
+    
+    # Generar token de acceso
+    token = create_access_token({
+        "sub": alumno.email,
+        "nombre": alumno.nombre,
+        "nivel": alumno.nivel,
+        "alumno_id": alumno.id,
+        })
+    
+    #creamos la respuesta que se le va a dar al frontend
+    response.set_cookie(key="access_token", 
+                        value=token, 
+                        httponly=True, 
+                        secure=False, 
+                        samesite="lax",     #Esto se puede cambiar cuando usemos HHTPS en producción, para mejorar la seguridad
+                        max_age=3600)
+    
+    return {"message": _("LOGIN SUCCESS")}
+
+#Definimos una funcion que nos devuelva los datos del alumno actual a partir del token 
+@app.get("/api/me")
+def obtener_datos_alumno_actual(current_user: dict = Depends(get_current_user)):
+    """Esta funcion se encargará de devolver los datos del alumno actual a partir del token de acceso"""
+    return {"email": current_user["sub"], "nombre": current_user["nombre"], "nivel": current_user["nivel"], "alumno_id": current_user["alumno_id"]}
+
+#Definimos una funcion para poder cerrar la sesion del alumno actual, eliminamos la cookie. 
+@app.post("/api/logout")
+def logout_alumno(response: Response):
+    """Esta funcion se encargará de cerrar la sesión del alumno"""
+    response.delete_cookie(key="access_token")
+    return {"message": _("GOODBYE MESSAGE")}

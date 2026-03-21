@@ -1,6 +1,7 @@
 import { Poppins} from "next/font/google";
 import "./globals.css";
-import { Toaster } from "sonner";
+import { Toaster } from "sileo";
+import { AuthProvider } from "./context/AuthContext";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -17,10 +18,13 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="es" 
-      className={`${poppins.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}
-        <Toaster position="bottom-right" richColors />
+      className={`${poppins.variable} h-full antialiased`}>
+        
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+        <Toaster position="top-center" />
       </body>
     </html>
   );

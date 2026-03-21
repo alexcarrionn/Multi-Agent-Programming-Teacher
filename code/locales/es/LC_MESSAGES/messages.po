@@ -82,3 +82,9 @@ msgstr "Fichero modificado, actualizando base de datos"
 
 msgid "ERROR SAVING USERS"
 msgstr "Error al guardar los alumnos autorizados en la base de datos."
+
+msgid "INITIALIZE THREADS"
+msgstr "Inicializando los hilos de observacion de ficheros..."
+
+msgid "SERVER STARTED"
+msgstr "Inicializando servidor y preparando la base de datos..." 

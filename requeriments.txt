@@ -27,3 +27,4 @@ uvicorn
 pydantic
 watchfiles
 pandas
+python-jose[cryptography]

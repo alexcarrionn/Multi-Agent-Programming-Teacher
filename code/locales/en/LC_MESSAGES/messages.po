@@ -82,3 +82,9 @@ msgstr "File changed updating data base."
 
 msgid "ERROR SAVING USERS"
 msgstr "Error saving authorized users to the database."
+
+msgid "INITIALIZE THREADS"
+msgstr "Initializing file observation threads..."
+
+msgid "SERVER STARTED"
+msgstr "Initializing the server and preparing the database..."

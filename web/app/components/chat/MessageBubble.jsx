@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { Button } from "@/app/components/ui/button"; // Asegúrate de que esta ruta sea correcta
 import { Copy, Check, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, User, Sparkles } from 'lucide-react';
 import { cn } from "@/lib/utils"; // Importamos la utilidad que creamos en el Paso 2
-import { toast } from "sonner";
+import { sileo } from "sileo";
 
 const FunctionDisplay = ({ toolCall }) => {
     const [expanded, setExpanded] = useState(false);
@@ -125,7 +125,13 @@ export default function MessageBubble({ message }) {
                                             <div className="flex items-center justify-between bg-gray-800 rounded-t-lg px-3 py-1.5 text-xs text-gray-300 border border-b-0 border-gray-700">
                                                 <span>{match[1]}</span>
                                                 <Button size="icon" variant="ghost" className="h-5 w-5 hover:bg-gray-700 hover:text-white"
-                                                    onClick={() => { navigator.clipboard.writeText(String(children).replace(/\n$/, '')); toast.success('Código copiado'); }}>
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+                                                        sileo.success({
+                                                            title: 'Copiado',
+                                                            description: 'Código copiado al portapapeles.',
+                                                        });
+                                                    }}>
                                                     <Copy className="h-3 w-3" />
                                                 </Button>
                                             </div>
