@@ -16,10 +16,10 @@ export default function ChatArea({ messages = [], isLoading = false, onSend = ()
     const hasMessages = messages && messages.length > 0;
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex h-full min-h-0 flex-col">
             {hasMessages ? (
                 <>
-                    <div className="flex-1 overflow-y-auto">
+                    <div className="min-h-0 flex-1 overflow-y-auto">
                         <div className="max-w-3xl mx-auto px-4 py-6">
                             {messages.map((msg, i) => (
                                 <MessageBubble key={i} message={msg} />
@@ -42,7 +42,7 @@ export default function ChatArea({ messages = [], isLoading = false, onSend = ()
                     <ChatInput onSend={onSend} isLoading={isLoading} />
                 </>
             ) : (
-                <div className="flex-1 flex flex-col items-center justify-center px-4">
+                <div className="flex flex-1 flex-col items-center justify-center px-4">
                     <WelcomeScreen onSuggestionClick={onSend} />
                     <div className="w-full max-w-3xl mt-2">
                         <ChatInput onSend={onSend} isLoading={isLoading} />

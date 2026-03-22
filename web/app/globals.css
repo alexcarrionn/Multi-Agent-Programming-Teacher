@@ -118,6 +118,8 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+
+
 /*Tipografía*/
 @font-face {
   font-family: "Geist Sans";
@@ -145,8 +147,83 @@
     @apply rounded-md border border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
+}
+
+  @layer components {
+  .btn-codi-animated {
+    position: relative;
+    width: 100%;
+    height: 45px;
+    background: transparent;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    /* Borde en el azul principal de Codi */
+    border: 2px solid #2563EB; 
+    overflow: hidden;
+    z-index: 1;
+    /* El texto siempre blanco para contrastar con los colores vivos */
+    color: #ffffff !important; 
+    transition: all 0.3s ease;
+  }
+
+  .btn-codi-animated::before {
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    /* Gradiente con los colores exactos de tu logo: Fondo oscuro -> Azul -> Fondo oscuro -> Violeta */
+    background: linear-gradient(#0f172a, #2563EB, #0f172a, #7C3AED);
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: top 0.5s ease;
+  }
+
+  /* Al hacer hover, el gradiente se desliza hacia abajo */
+  .btn-codi-animated:hover::before {
+    top: 0;
+  }
+
+    .btn-header-login {
+    position: relative;
+    width: 50%;
+    height: 45px;
+    background: transparent;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    /* Borde en el azul principal de Codi */
+    border: 2px solid #2563EB; 
+    overflow: hidden;
+    z-index: 1;
+    /* El texto siempre blanco para contrastar con los colores vivos */
+    color: #ffffff !important; 
+    transition: all 0.3s ease;
+  }
+
+  .btn-header-login::before {
+    content: "";
+    position: absolute;
+    height: 300%;
+    width: 100%;
+    /* Gradiente con los colores exactos de tu logo: Fondo oscuro -> Azul -> Fondo oscuro -> Violeta */
+    background: linear-gradient(#0f172a, #2563EB, #0f172a, #7C3AED);
+    top: -100%;
+    left: 0;
+    z-index: -1;
+    transition: top 0.5s ease;
+  }
+
+  /* Al hacer hover, el gradiente se desliza hacia abajo */
+  .btn-header-login:hover::before {
+    top: 0;
+  }
 
 }
+
 
 @media (max-width: 768px) {
   textarea {

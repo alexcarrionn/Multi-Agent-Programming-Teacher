@@ -32,10 +32,12 @@ export default function Home() {
   };
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-gray-100 pt-20">
-      <Header />
+    <main className="flex min-h-dvh flex-col overflow-hidden bg-gray-50">
+      <div className="border-b border-gray-200 bg-white">
+        <Header />
+      </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden">
         {/* Pasamos los estados y la función al ChatArea */}
         <ChatArea 
           messages={messages} 
@@ -44,9 +46,11 @@ export default function Home() {
         />
       </div>
 
-      <p className="px-4 py-4 text-xs text-gray-500 text-center max-w-3xl mx-auto">
-        Codi es una IA de apoyo educativo y puede cometer errores.
-      </p>
+      <div className="flex items-center justify-center border-t border-gray-200 bg-white px-4 py-3">
+        <p className="text-xs text-gray-500 text-center max-w-3xl">
+          Codi es una IA de apoyo educativo y puede cometer errores.
+        </p>
+      </div>
     </main>
   );
 }

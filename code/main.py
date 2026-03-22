@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from auth.auth import create_access_token, get_current_user
-from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists
+from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
@@ -134,6 +134,9 @@ class AlumnoLogin(BaseModel):
     email: str
     password: str
 
+class PasswordUpdateRequest(BaseModel):
+    password: str
+
 #definimos la funcion que comprobará las credenciales del alumno para poder iniciar sesión, ademas 
 # usaremos el token del alumno para mantener la sesión iniciada y poder mostrar su progreso y personalizar su experiencia.
 @app.post("/api/login")
@@ -173,3 +176,18 @@ def logout_alumno(response: Response):
     """Esta funcion se encargará de cerrar la sesión del alumno"""
     response.delete_cookie(key="access_token")
     return {"message": _("GOODBYE MESSAGE")}
+
+@app.put("/api/update-password")
+def actualizar_contraseña(datos: PasswordUpdateRequest, current_user: dict = Depends(get_current_user)):
+    """Esta funcion se encargará de actualizar la contraseña del alumno actual."""
+    #Cambiamos la contraseña deñ alumno en la base de datos. 
+    try:
+        #Si quiere actualizar la contraseña, primero comprobamos que la nueva contraseña sea segura 
+        if len(datos.password) < 8:
+            raise HTTPException(detail=_("PASSWORD TOO SHORT"))
+        #Aquí iría tu lógica para actualizar la contraseña en la base de datos, por ejemplo:
+        update_password(current_user["alumno_id"], datos.password)
+        return {"message": _("PASSWORD UPDATE SUCCESS")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("PASSWORD UPDATE ERROR") + f": {str(e)}")
+        

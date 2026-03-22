@@ -80,13 +80,13 @@ export default function Login()
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:8000/api/login", {
+      await axios.post("/backend/api/login", {
         email: input.email,
         password: input.password,
       }, { withCredentials: true });
 
       // Cargamos los datos del usuario desde /api/me
-      const { data } = await axios.get("http://localhost:8000/api/me", { withCredentials: true });
+      const { data } = await axios.get("/backend/api/me", { withCredentials: true });
       setUser(data);
 
       handleSuccess("Bienvenido de nuevo.");
@@ -97,6 +97,7 @@ export default function Login()
       }
       handleError(error);
     }
+    
   };
 
   return (
@@ -150,9 +151,11 @@ export default function Login()
 
           {/* Botones */}
           <div className="flex flex-col gap-3 mt-4">
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-sm transition-colors">
+           <button 
+              type="submit" 
+              className="btn-codi-animated mt-4">
               Iniciar sesión
-            </Button>
+          </button>
 
             <Button asChild variant="outline" type="button" className="w-full py-2.5 rounded-lg">
               <Link href="/">Cancelar</Link>

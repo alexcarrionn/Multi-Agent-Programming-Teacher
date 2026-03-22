@@ -88,3 +88,12 @@ msgstr "Inicializando los hilos de observacion de ficheros..."
 
 msgid "SERVER STARTED"
 msgstr "Inicializando servidor y preparando la base de datos..." 
+
+msgid "PASSWORD UPDATE SUCCESS"
+msgstr "Contraseña cambiada correctamente."
+
+msgid "PASSWORD UPDATE ERROR"
+msgstr "Ha ocurrido un error a la hora de cambiar la contraseña. Por favor, inténtelo de nuevo"
+
+msgid "PASSWORD TOO SHORT"
+msgstr "La contraseña tiene que te tener un mínimo de 8 carácteres."

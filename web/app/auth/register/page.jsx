@@ -72,7 +72,7 @@ export default function Register() {
 
     try {
       const { data } = await axios.post(
-        "http://localhost:8000/api/register",
+        "/backend/api/register",
         {
           nombre: input.nombre,
           email: input.email,
@@ -207,12 +207,11 @@ export default function Register() {
 
           {/* Botones */}
           <div className="flex flex-col gap-3 mt-4">
-            <Button 
+           <button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-sm transition-colors">
-
+              className="btn-codi-animated mt-4">
               Registrarse
-            </Button>
+            </button>
 
             <Button asChild variant="outline" type="button" className="w-full py-2.5 rounded-lg">
               <Link href="/">Cancelar</Link>

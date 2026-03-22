@@ -10,14 +10,14 @@ export function AuthProvider({ children }) {
 
     // Al montar comprobamos que este la sesion activa en la cookie. 
     useEffect(() => {
-        axios.get("http://localhost:8000/api/me", { withCredentials: true })
+                axios.get("/backend/api/me", { withCredentials: true })
       .then(res => setUser(res.data))
       .catch(() => setUser(false)) 
       .finally(() => setLoading(false));
     }, []);
 
     const logout = async () => {
-        await axios.post("http://localhost:8000/api/logout", null, { withCredentials: true });
+                await axios.post("/backend/api/logout", null, { withCredentials: true });
         setUser(false);
     };
 

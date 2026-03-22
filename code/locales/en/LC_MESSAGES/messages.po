@@ -88,3 +88,12 @@ msgstr "Initializing file observation threads..."
 
 msgid "SERVER STARTED"
 msgstr "Initializing the server and preparing the database..."
+
+msgid "PASSWORD UPDATE SUCCESS"
+msgstr "Your password has been changed successfully."
+
+msgid "PASSWORD UPDATE ERROR"
+msgstr "An error occurred while trying to change your password. Please try again."
+
+msgid "PASSWORD TOO SHORT"
+msgstr "The password must be at least 8 characters long."

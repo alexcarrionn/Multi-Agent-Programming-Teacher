@@ -222,3 +222,22 @@ def cambio_nivel(nivel:str, alumno_id: int):
         raise
     finally:
         session.close()
+
+#definimos una funcion para cambiar la contraseña de un alumno en la base de datos
+def update_password(alumno_id: int, new_password: str):
+    session = SessionLocal()
+    try:
+        alumno = session.query(Alumno).filter(Alumno.id == alumno_id).first()
+        if alumno is not None:
+            alumno.password = hash_password(new_password)
+            session.commit()
+            session.refresh(alumno)
+            return alumno
+        else:
+            raise ValueError(_("ALUMNO NOT FOUND"))
+    except Exception as e:
+        print(f"{_('ERROR UPDATING PASSWORD')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
