@@ -52,6 +52,23 @@ export default function Login()
     }
   };
 
+  const isInvalidCredentialsError = (err) => {
+    if (!axios.isAxiosError(err)) return false;
+
+    const status = err.response?.status;
+    const detail = (err.response?.data?.detail || "").toString().toLowerCase();
+    const message = (err.response?.data?.message || "").toString().toLowerCase();
+
+    return (
+      status === 401 ||
+      status === 403 ||
+      detail.includes("credenciales") ||
+      detail.includes("incorrect") ||
+      message.includes("credenciales") ||
+      message.includes("incorrect")
+    );
+  };
+
   const handleSuccess = (msg) => {
     sileo.success({
       title: "Inicio de sesión correcto",
@@ -75,6 +92,9 @@ export default function Login()
       handleSuccess("Bienvenido de nuevo.");
       setTimeout(() => router.push("/"), 1000);
     } catch (error) {
+      if (isInvalidCredentialsError(error)) {
+        setInput({ email: "", password: "" });
+      }
       handleError(error);
     }
   };

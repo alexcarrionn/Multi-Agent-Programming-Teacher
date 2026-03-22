@@ -115,7 +115,7 @@ async def registrar_alumno(datos: AlumnoCreate):
 
     """Esta funcion recibirá los datos de registro del alumno desde el frontend, comprobará el email y si es correcto lo registrará"""
     if not datos.email.endswith("@um.es"):
-       raise HTTPException(status_code=400, detail=_("ERROR INVALID EMAIL DOMAIN"))
+       raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
     
     #Ponemos la logica de comprobacion de email autorizado 
     if not comprobacion_email(datos.email):
