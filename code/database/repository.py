@@ -241,3 +241,20 @@ def update_password(alumno_id: int, new_password: str):
         raise
     finally:
         session.close()
+
+#implementamos una funcion para eliminar la cuenta de un alumno en la base de datos MySQL
+def eliminar_cuenta_alumno(alumno_id: int):
+    session = SessionLocal()
+    try:
+        alumno = session.query(Alumno).filter(Alumno.id == alumno_id).first()
+        if alumno is not None:
+            session.delete(alumno)
+            session.commit()
+        else:
+            raise ValueError(_("ALUMNO NOT FOUND"))
+    except Exception as e:
+        print(f"{_('ERROR DELETING ACCOUNT')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()

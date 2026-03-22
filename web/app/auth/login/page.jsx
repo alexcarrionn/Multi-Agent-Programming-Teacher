@@ -7,12 +7,14 @@ import { Button } from "@/app/components/ui/button";
 import axios from "axios";
 import Image from "next/image"; // Importamos Image para poner el logo de Codi
 import { sileo } from "sileo";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 
 export default function Login()
  {
   const { setUser } = useAuth();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
 
   const getErrorMessage = (err) => {
     if (!err) return "Ha ocurrido un error.";
@@ -89,7 +91,7 @@ export default function Login()
       const { data } = await axios.get("/backend/api/me", { withCredentials: true });
       setUser(data);
 
-      handleSuccess("Bienvenido de nuevo.");
+      handleSuccess("Bienvenido de nuevo!!");
       setTimeout(() => router.push("/"), 1000);
     } catch (error) {
       if (isInvalidCredentialsError(error)) {
@@ -134,19 +136,28 @@ export default function Login()
           </div>
 
           {/* Grupo de Contraseña con Label */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 relative">
             <label className="text-sm font-medium text-gray-700" htmlFor="password">
               Contraseña *
             </label>
+
             <input 
               id="password"
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={input.password}
               onChange={handleChange}
+              className="w-full p-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               required
             />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-[38px] text-gray-500"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
 
           {/* Botones */}

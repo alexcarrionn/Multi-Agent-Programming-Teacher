@@ -12,13 +12,15 @@ from fastapi.middleware.cors import CORSMiddleware
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from auth.auth import create_access_token, get_current_user
-from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password
+from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password, eliminar_cuenta_alumno
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
+ASIGNATURA = "Introduccion_programacion"
+CARPETA_DOCUMENTOS = "data"
+DATA_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / ASIGNATURA
+DATA_AUTORITHED_USER_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / "alumnos_autorizados.xlsx"
 
-DATA_PATH = Path(__file__).resolve().parent / "data" / "Introduccion_programacion"
-DATA_AUTORITHED_USER_PATH = Path(__file__).resolve().parent / "data" / "alumnos_autorizados.xlsx"
 
 #Configuramos la internacionalización para mostrar los mensajes en el idioma del usuario, en este caso español
 _= setup_i18n("es")
@@ -76,6 +78,10 @@ async def lifespan(app: FastAPI):
     #Si no existen las creamos si existen no hacemos nada 
     if not tablas_existen():
         create_tables()
+
+    data_root = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
+    #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
+    load_documents_from_folder(data_root / ASIGNATURA, data_root)
     
     print (_("INITIALIZE THREADS"))
     #Ahora inicializamos los hilos observadores 
@@ -184,10 +190,25 @@ def actualizar_contraseña(datos: PasswordUpdateRequest, current_user: dict = De
     try:
         #Si quiere actualizar la contraseña, primero comprobamos que la nueva contraseña sea segura 
         if len(datos.password) < 8:
-            raise HTTPException(detail=_("PASSWORD TOO SHORT"))
+            raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
         #Aquí iría tu lógica para actualizar la contraseña en la base de datos, por ejemplo:
         update_password(current_user["alumno_id"], datos.password)
         return {"message": _("PASSWORD UPDATE SUCCESS")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("PASSWORD UPDATE ERROR") + f": {str(e)}")
+
+@app.delete("/api/delete-account")
+def eliminar_cuenta(current_user: dict = Depends(get_current_user)):
+    """Esta función se encargará de eliminar la cuenta del alumno actual."""
+    try:
+        #Funcion que se encarga de eliminar al usuario de la base de datos. 
+        eliminar_cuenta_alumno(current_user["alumno_id"])
+        return {"message": _("ACCOUNT DELETION SUCCESS")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
+
+@app.get("/api/stream-graph-updates")
+def stream_graph_updates_endpoint(current_user: dict = Depends(get_current_user)):
+    """Esta función se encargará de manejar la conexión SSE para enviar las actualizaciones del grafo de conocimiento al frontend en tiempo real."""
+    return Response(content=stream_graph_updates(), media_type="text/event-stream")
         

@@ -20,7 +20,7 @@ export default function Home() {
     // Simulamos que Codi está escribiendo
     setIsLoading(true);
 
-    //Simulamos una respuesta de la IA después de 1.5 segundos
+    //Simulamos una respuesta de la IA después de 3 segundos
     setTimeout(() => {
       const botResponse = { 
         role: "bot", 
@@ -28,7 +28,7 @@ export default function Home() {
       };
       setMessages((prev) => [...prev, botResponse]);
       setIsLoading(false);
-    }, 1500);
+    }, 3000);
   };
 
   return (
