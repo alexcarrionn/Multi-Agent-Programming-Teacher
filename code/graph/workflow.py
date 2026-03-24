@@ -1,4 +1,5 @@
 
+import json
 import os
 from agents.supervisor import nodo_supervisor
 from .state import AgentState
@@ -17,6 +18,7 @@ from rag.retriever import create_retriever
 from config.settings import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import AIMessage
 
 
 
@@ -171,11 +173,53 @@ graph = _build_graph()
 
 # Funcion para ejecutar el workflow y mostrar las actualizaciones en tiempo real
 def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int):
+    #Cambiamos esta funcion para que en lugar de ejecutar el grafo, ejecute el worflow y emita los eventos SSE con las respuestas
+
     config = {"configurable": {"thread_id": thread_id}}
 
-    events = graph.stream(
-        {"mensajes": [("user", user_input)], "alumno_id": alumno_id, "user_level": user_level}, config, stream_mode="values"
-    )
-    for event in events:
-        message = event["mensajes"][-1]
-        message.pretty_print()
+    #rastreamos los contenidos ya enviados para no duplicar información en el frontend
+    sent_contents = set[str] = set()
+
+    try: 
+        events = graph.stream({"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id}, config, stream_mode="values")
+
+        for event in events:
+            #para cada uno de los eventos
+            mensajes = event.get("mensajes", [])
+            if not mensajes:
+                continue
+            #obtenemos el ultimo mensaje generado por el agente
+            ultimo_mensaje = mensajes[-1]
+
+            #comprobamos que el mensajes es de la IA
+            if isinstance(ultimo_mensaje, AIMessage) and ultimo_mensaje.content:
+                content = ultimo_mensaje.content.strip()
+                if content and content not in sent_contents:
+                    sent_contents.add(content)
+                    # Intentamos detectar qué agente respondió
+                    # a partir de los campos del estado
+                    agent = _detect_agent(event)
+                    payload = json.dumps({"content": content, "agent": agent}, ensure_ascii=False)
+                    yield f"data: {payload}\n\n"
+            
+    except Exception as e:
+        error_payload = json.dumps({"error": str(e)}, ensure_ascii=False)
+        yield f"data: {error_payload}\n\n"
+    finally:
+        # Al finalizar el stream, enviamos un evento indicando que ha terminado
+        yield "data: [DONE]\n\n"
+
+#configuramos una funcion para detectar el agente 
+def _detect_agent(event: dict) -> str:
+    """Función para detectar qué agente ha generado la respuesta a partir del estado del grafo."""
+    # Comprobamos la presencia de claves específicas en el estado para inferir el agente
+    if event.get("explicaciones"):
+        return AgentType.EDUCADOR.value
+    elif event.get("demostraciones"):
+        return AgentType.DEMOSTRADOR.value
+    elif event.get("puntuacion") is not None:
+        return AgentType.EVALUADOR.value
+    elif event.get("feedback"):
+        return AgentType.CRITICO.value
+    else:
+        return "codi"

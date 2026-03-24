@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Button } from "@/app/components/ui/button"; // Asegúrate de que esta ruta sea correcta
+import { Button } from "@/app/components/ui/button";
 import { Copy, Check, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, User, Sparkles } from 'lucide-react';
-import { cn } from "@/lib/utils"; // Importamos la utilidad que creamos en el Paso 2
+import { cn } from "@/lib/utils";
 import { sileo } from "sileo";
 
 const FunctionDisplay = ({ toolCall }) => {
@@ -95,9 +95,10 @@ export default function MessageBubble({ message }) {
 
     return (
         <div className={cn("group flex gap-3 py-4", isUser ? "flex-row-reverse" : "flex-row")}>
+            {/* Avatar */}
             <div className={cn(
                 "h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                isUser ? "bg-blue-600" : "bg-green-600" // Cambiado a colores de tu proyecto
+                isUser ? "bg-blue-600" : "bg-green-600"
             )}>
                 {isUser
                     ? <User className="h-4 w-4 text-white" />
@@ -105,60 +106,81 @@ export default function MessageBubble({ message }) {
                 }
             </div>
 
+            {/* Burbuja */}
             <div className={cn("max-w-[80%] min-w-0", isUser && "flex flex-col items-end")}>
                 <div className={cn(
                     "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                     isUser
-                        ? "bg-blue-600 text-white rounded-tr-sm" // Ajustado al azul de usuario
-                        : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm" // Ajustado al blanco del bot
+                        ? "bg-blue-600 text-white rounded-tr-sm"
+                        : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm"
                 )}>
                     {isUser ? (
                         <p className="whitespace-pre-wrap">{message.content}</p>
                     ) : (
-                        <ReactMarkdown
-                            className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                            components={{
-                                code: ({ inline, className, children, ...props }) => {
-                                    const match = /language-(\w+)/.exec(className || '');
-                                    return !inline && match ? (
-                                        <div className="relative group/code my-3">
-                                            <div className="flex items-center justify-between bg-gray-800 rounded-t-lg px-3 py-1.5 text-xs text-gray-300 border border-b-0 border-gray-700">
-                                                <span>{match[1]}</span>
-                                                <Button size="icon" variant="ghost" className="h-5 w-5 hover:bg-gray-700 hover:text-white"
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
-                                                        sileo.success({
-                                                            title: 'Copiado',
-                                                            description: 'Código copiado al portapapeles.',
-                                                        });
-                                                    }}>
-                                                    <Copy className="h-3 w-3" />
-                                                </Button>
+                        /* ── Corrección react-markdown v9 ──────────────────────────
+                           - className ya no se pasa al componente, va en un div wrapper
+                           - el prop `inline` en code fue eliminado, se detecta con `node`
+                        ─────────────────────────────────────────────────────────── */
+                        <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            <ReactMarkdown
+                                components={{
+                                    code: ({ node, className, children, ...props }) => {
+                                        const match = /language-(\w+)/.exec(className || '');
+                                        return match ? (
+                                            <div className="relative group/code my-3">
+                                                <div className="flex items-center justify-between bg-gray-800 rounded-t-lg px-3 py-1.5 text-xs text-gray-300 border border-b-0 border-gray-700">
+                                                    <span>{match[1]}</span>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-5 w-5 hover:bg-gray-700 hover:text-white"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+                                                            sileo.success({
+                                                                title: 'Copiado',
+                                                                description: 'Código copiado al portapapeles.',
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Copy className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                                <pre className="bg-gray-900 rounded-b-lg p-3 overflow-x-auto border border-t-0 border-gray-700 text-gray-100">
+                                                    <code className={className} {...props}>{children}</code>
+                                                </pre>
                                             </div>
-                                            <pre className="bg-gray-900 rounded-b-lg p-3 overflow-x-auto border border-t-0 border-gray-700 text-gray-100">
-                                                <code className={className} {...props}>{children}</code>
-                                            </pre>
-                                        </div>
-                                    ) : (
-                                        <code className="px-1.5 py-0.5 rounded-md bg-gray-100 text-pink-600 text-xs font-mono">{children}</code>
-                                    );
-                                },
-                                a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline underline-offset-2">{children}</a>,
-                                p: ({ children }) => <p className="my-2 leading-relaxed">{children}</p>,
-                                ul: ({ children }) => <ul className="my-2 ml-4 list-disc space-y-1">{children}</ul>,
-                                ol: ({ children }) => <ol className="my-2 ml-4 list-decimal space-y-1">{children}</ol>,
-                                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                                h1: ({ children }) => <h1 className="text-lg font-bold text-gray-900 mt-4 mb-2">{children}</h1>,
-                                h2: ({ children }) => <h2 className="text-base font-bold text-gray-900 mt-3 mb-2">{children}</h2>,
-                                h3: ({ children }) => <h3 className="text-sm font-bold text-gray-900 mt-3 mb-1">{children}</h3>,
-                                blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 bg-blue-50 pl-3 py-1 my-2 text-gray-700 italic rounded-r-lg">{children}</blockquote>,
-                            }}
-                        >
-                            {message.content}
-                        </ReactMarkdown>
+                                        ) : (
+                                            <code className="px-1.5 py-0.5 rounded-md bg-gray-100 text-pink-600 text-xs font-mono" {...props}>
+                                                {children}
+                                            </code>
+                                        );
+                                    },
+                                    a: ({ children, ...props }) => (
+                                        <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline underline-offset-2">
+                                            {children}
+                                        </a>
+                                    ),
+                                    p: ({ children }) => <p className="my-2 leading-relaxed">{children}</p>,
+                                    ul: ({ children }) => <ul className="my-2 ml-4 list-disc space-y-1">{children}</ul>,
+                                    ol: ({ children }) => <ol className="my-2 ml-4 list-decimal space-y-1">{children}</ol>,
+                                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                    h1: ({ children }) => <h1 className="text-lg font-bold text-gray-900 mt-4 mb-2">{children}</h1>,
+                                    h2: ({ children }) => <h2 className="text-base font-bold text-gray-900 mt-3 mb-2">{children}</h2>,
+                                    h3: ({ children }) => <h3 className="text-sm font-bold text-gray-900 mt-3 mb-1">{children}</h3>,
+                                    blockquote: ({ children }) => (
+                                        <blockquote className="border-l-4 border-blue-500 bg-blue-50 pl-3 py-1 my-2 text-gray-700 italic rounded-r-lg">
+                                            {children}
+                                        </blockquote>
+                                    ),
+                                }}
+                            >
+                                {message.content}
+                            </ReactMarkdown>
+                        </div>
                     )}
                 </div>
 
+                {/* Tool calls (si los hay) */}
                 {message.tool_calls?.length > 0 && (
                     <div className="space-y-1 mt-1">
                         {message.tool_calls.map((toolCall, idx) => (
@@ -167,6 +189,7 @@ export default function MessageBubble({ message }) {
                     </div>
                 )}
 
+                {/* Botón copiar (solo mensajes del bot) */}
                 {!isUser && message.content && (
                     <Button
                         size="icon"

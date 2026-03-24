@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from watchfiles  import watch, Change
 import threading
@@ -207,8 +208,19 @@ def eliminar_cuenta(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
 
-@app.get("/api/stream-graph-updates")
-def stream_graph_updates_endpoint(current_user: dict = Depends(get_current_user)):
-    """Esta función se encargará de manejar la conexión SSE para enviar las actualizaciones del grafo de conocimiento al frontend en tiempo real."""
-    return Response(content=stream_graph_updates(), media_type="text/event-stream")
-        
+@app.post("/api/chat")
+def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """El endPoint de chat es aquel que recibe los mensajes del usuario y devuelve las respuestas del agente, 
+    como un stream de eventos Server-Sent Events (SSE) para que el frontend pueda mostrar la respuesta del agente en tiempo real.
+
+    Cada evento tiene el formato " data: {"content": "...", "agent": "educador|demostrador|evaluador|critico"}
+    """
+    #Vamos a usar el id del usuario para poder mantener la conversación personalizada
+    thread_id = str(current_user["alumno_id"])
+
+    return StreamingResponse(stream_graph_updates(user_input=datos.message,
+            thread_id=thread_id,
+            user_level=current_user["nivel"],
+            #con el x-Accel-Buffering: no se desactiva el buffering en Nginx para que los eventos se envíen al frontend en tiempo real, sin esperar a que se complete la respuesta completa.
+            alumno_id=current_user["alumno_id"],), media_type="text/event-stream", headers={"Cache-Control": "no-cache","Connection": "keep-alive","X-Accel-Buffering": "no"})
+

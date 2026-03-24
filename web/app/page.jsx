@@ -1,26 +1,20 @@
 // app/page.jsx
-"use client"; // Necesario porque ahora usamos estados interactivos (useState)
+"use client";
 
 import { useState } from "react";
 import Header from "./components/ui/header";
 import ChatArea from "./components/chat/ChatArea";
 
 export default function Home() {
-  // Estado para almacenar el historial de mensajes
   const [messages, setMessages] = useState([]);
-  // Estado para simular si la IA está "pensando"
   const [isLoading, setIsLoading] = useState(false);
 
-  // Función que se ejecuta al enviar un mensaje
   const handleSendMessage = (content) => {
-    // Añadimos el mensaje del usuario a la lista
     const newUserMessage = { role: "user", content };
     setMessages((prev) => [...prev, newUserMessage]);
     
-    // Simulamos que Codi está escribiendo
     setIsLoading(true);
 
-    //Simulamos una respuesta de la IA después de 3 segundos
     setTimeout(() => {
       const botResponse = { 
         role: "bot", 
@@ -32,13 +26,16 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-dvh flex-col overflow-hidden bg-gray-50">
-      <div className="border-b border-gray-200 bg-white">
+    // CAMBIO CLAVE: Usamos h-dvh en lugar de min-h-dvh para anclar el tamaño a la pantalla
+    <main className="flex h-dvh flex-col overflow-hidden bg-gray-50">
+      
+      {/* Header fijo arriba */}
+      <div className="shrink-0 border-b border-gray-200 bg-white">
         <Header />
       </div>
 
-      <div className="relative flex-1 min-h-0 overflow-hidden">
-        {/* Pasamos los estados y la función al ChatArea */}
+      {/* Contenedor central. Flex-1 toma el espacio restante, min-h-0 evita desbordamientos */}
+      <div className="relative flex-1 min-h-0 w-full">
         <ChatArea 
           messages={messages} 
           isLoading={isLoading} 
@@ -46,7 +43,8 @@ export default function Home() {
         />
       </div>
 
-      <div className="flex items-center justify-center border-t border-gray-200 bg-white px-4 py-3">
+      {/* Footer fijo abajo */}
+      <div className="shrink-0 flex items-center justify-center bg-gray-50 px-4 py-2">
         <p className="text-xs text-gray-500 text-center max-w-3xl">
           Codi es una IA de apoyo educativo y puede cometer errores.
         </p>
