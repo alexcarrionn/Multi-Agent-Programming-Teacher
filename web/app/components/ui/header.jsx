@@ -18,14 +18,14 @@ export default function Header() {
   const handleLogout = async () => {
     // Aquí iría la lógica para borrar cookies/tokens
     await logout();
-    router.push("/");
+    router.push("/auth/login"); // Redirige al login después de cerrar sesión
   };
 
 const isLoggedIn = !!user; // Simula el estado de carga
 
 if(loading) {
   return (
-  <header className="z-50 flex h-16 w-full items-center justify-between bg-white/80 px-4 backdrop-blur-md sm:px-6 md:h-20">
+  <header className="z-50 flex h-16 w-full items-center justify-between bg-white/80 px-4 backdrop-blur-md sm:px-6 md:h-20 z-10 relative">
         <Link href="/" className="flex items-center gap-3">
           <Image src="/logo.svg" alt="Logo" width={36} height={36} priority />
           <span className="text-2xl font-bold text-gray-800">Codi</span>
@@ -35,7 +35,7 @@ if(loading) {
 }
 
   return (
-    <header className="z-50 flex h-16 w-full items-center justify-between bg-white/80 px-4 backdrop-blur-md sm:px-6 md:h-20">
+    <header className="z-50 flex h-16 w-full items-center justify-between bg-white/80 px-4 backdrop-blur-md sm:px-6 md:h-20 z-10 relative">
       {/* LADO IZQUIERDO: Logo y Título */}
       <Link href="/" className="flex items-center gap-3">
         <Image src="/logo.svg" alt="Logo" width={36} height={36} priority />

@@ -7,6 +7,8 @@ from watchfiles  import watch, Change
 import threading
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 
 # Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
@@ -80,9 +82,9 @@ async def lifespan(app: FastAPI):
     if not tablas_existen():
         create_tables()
 
-    data_root = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
+    #data_root = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
     #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
-    load_documents_from_folder(data_root / ASIGNATURA, data_root)
+    #load_documents_from_folder(data_root / ASIGNATURA, data_root)
     
     print (_("INITIALIZE THREADS"))
     #Ahora inicializamos los hilos observadores 
@@ -102,13 +104,29 @@ app = FastAPI(
 )
 
 #configuramos CORS para permitir peticiones desde el frontend, en este caso desde localhost:3000, pero esto se puede cambiar cuando se despliegue el frontend en producción
+# main.py — sustituye el CORSMiddleware por esto:
+"""
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Cambiar esto por el dominio de tu frontend en producción
+    allow_origins=[
+        "http://localhost:3000",
+        "https://showers-performance-chargers-eye.trycloudflare.com",  # ← añade tu dominio
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+)"""
+
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    origin = request.headers.get("origin", "")
+    response = await call_next(request)
+    if origin.endswith(".trycloudflare.com") or origin == "http://localhost:3000":
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 #Definimos una funcion en la que se registre un usuario
 class AlumnoCreate(BaseModel):
     nombre: str
@@ -207,6 +225,11 @@ def eliminar_cuenta(current_user: dict = Depends(get_current_user)):
         return {"message": _("ACCOUNT DELETION SUCCESS")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
+
+#definimos el ChatRequest
+class ChatRequest(BaseModel):
+    message: str
+
 
 @app.post("/api/chat")
 def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_user)):

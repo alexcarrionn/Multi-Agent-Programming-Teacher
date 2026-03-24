@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: [
+    "*.trycloudflare.com",
+  ],
+
   async rewrites() {
     return [
       {

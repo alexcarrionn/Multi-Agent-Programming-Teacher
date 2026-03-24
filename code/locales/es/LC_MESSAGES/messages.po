@@ -97,3 +97,6 @@ msgstr "Ha ocurrido un error a la hora de cambiar la contraseña. Por favor, int
 
 msgid "PASSWORD TOO SHORT"
 msgstr "La contraseña tiene que te tener un mínimo de 8 carácteres."
+
+msgid "MESSAGE NOT SIGNATURE"
+msgstr "Lo siento, no tengo información sobre ese tema en el material de la asignatura. Solo puedo ayudarte con los contenidos de la asignatura. ¿Tienes alguna duda sobre los temas de la asignatura?"

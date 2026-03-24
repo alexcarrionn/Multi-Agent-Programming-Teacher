@@ -1,11 +1,18 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from "@/app/components/ui/button";
-import { Copy, Check, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, User, Sparkles } from 'lucide-react';
+import { Copy, Check, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, User } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { sileo } from "sileo";
+
+function normalizeMarkdownTables(content = '') {
+    // Convierte tablas compactadas en una sola línea a formato multilinea.
+    return content.replace(/\|\s+\|(?=\s*[-:A-Za-z0-9ÁÉÍÓÚáéíóúÑñ])/g, '|' + "\n" + '|');
+}
 
 const FunctionDisplay = ({ toolCall }) => {
     const [expanded, setExpanded] = useState(false);
@@ -95,14 +102,22 @@ export default function MessageBubble({ message }) {
 
     return (
         <div className={cn("group flex gap-3 py-4", isUser ? "flex-row-reverse" : "flex-row")}>
-            {/* Avatar */}
+            {/* Avatar al agente le ponemos el logo de Codi*/}
             <div className={cn(
                 "h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                isUser ? "bg-blue-600" : "bg-green-600"
+                isUser ? "bg-blue-600" : "bg-white border border-gray-200"
             )}>
                 {isUser
                     ? <User className="h-4 w-4 text-white" />
-                    : <Sparkles className="h-4 w-4 text-white" />
+                    : (
+                        <Image
+                            src="/logo.svg"
+                            alt="Codi"
+                            width={20}
+                            height={20}
+                            className="h-5 w-5 object-contain"
+                        />
+                    )
                 }
             </div>
 
@@ -123,6 +138,7 @@ export default function MessageBubble({ message }) {
                         ─────────────────────────────────────────────────────────── */
                         <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                             <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
                                 components={{
                                     code: ({ node, className, children, ...props }) => {
                                         const match = /language-(\w+)/.exec(className || '');
@@ -172,9 +188,22 @@ export default function MessageBubble({ message }) {
                                             {children}
                                         </blockquote>
                                     ),
+                                    table: ({ children }) => (
+                                        <div className="my-3 overflow-x-auto rounded-lg border border-gray-200">
+                                            <table className="min-w-full border-collapse text-left text-xs sm:text-sm">{children}</table>
+                                        </div>
+                                    ),
+                                    thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
+                                    tr: ({ children }) => <tr className="hover:bg-gray-50/60">{children}</tr>,
+                                    th: ({ children }) => (
+                                        <th className="border-b border-gray-200 px-3 py-2 font-semibold text-gray-800">{children}</th>
+                                    ),
+                                    td: ({ children }) => (
+                                        <td className="border-b border-gray-100 px-3 py-2 align-top text-gray-700">{children}</td>
+                                    ),
                                 }}
                             >
-                                {message.content}
+                                {normalizeMarkdownTables(message.content)}
                             </ReactMarkdown>
                         </div>
                     )}

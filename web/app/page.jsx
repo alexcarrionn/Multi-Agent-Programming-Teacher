@@ -1,36 +1,20 @@
 // app/page.jsx
 "use client";
 
-import { useState } from "react";
+import { useChat } from "@/lib/hooks/useChat";
 import Header from "./components/ui/header";
 import ChatArea from "./components/chat/ChatArea";
 
 export default function Home() {
-  const [messages, setMessages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendMessage = (content) => {
-    const newUserMessage = { role: "user", content };
-    setMessages((prev) => [...prev, newUserMessage]);
-    
-    setIsLoading(true);
-
-    setTimeout(() => {
-      const botResponse = { 
-        role: "bot", 
-        content: "¡Hola! Soy Codi. Esta es una respuesta de prueba. Pronto estaré conectado a una IA real." 
-      };
-      setMessages((prev) => [...prev, botResponse]);
-      setIsLoading(false);
-    }, 3000);
-  };
+  const {messages, isLoading, sendMessage, stopStreaming} = useChat();
 
   return (
     // CAMBIO CLAVE: Usamos h-dvh en lugar de min-h-dvh para anclar el tamaño a la pantalla
     <main className="flex h-dvh flex-col overflow-hidden bg-gray-50">
       
       {/* Header fijo arriba */}
-      <div className="shrink-0 border-b border-gray-200 bg-white">
+      <div className="shrink-0 border-b border-gray-200 bg-white relative z-10">
         <Header />
       </div>
 
@@ -39,12 +23,13 @@ export default function Home() {
         <ChatArea 
           messages={messages} 
           isLoading={isLoading} 
-          onSend={handleSendMessage} 
+          onSend={sendMessage}
+          onStop={stopStreaming}
         />
       </div>
 
       {/* Footer fijo abajo */}
-      <div className="shrink-0 flex items-center justify-center bg-gray-50 px-4 py-2">
+      <div className="shrink-0 flex items-center justify-center bg-gray-50 px-4 py-2 relative z-10">
         <p className="text-xs text-gray-500 text-center max-w-3xl">
           Codi es una IA de apoyo educativo y puede cometer errores.
         </p>

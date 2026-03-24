@@ -178,13 +178,23 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
     config = {"configurable": {"thread_id": thread_id}}
 
     #rastreamos los contenidos ya enviados para no duplicar información en el frontend
-    sent_contents = set[str] = set()
+    sent_contents: set[str] = set()
 
     try: 
-        events = graph.stream({"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id}, config, stream_mode="values")
-
+        events = graph.stream({"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id,"respuesta_supervisor": ""}, config, stream_mode="values")
         for event in events:
-            #para cada uno de los eventos
+            #Si es una respuesta directa del supervisor
+            respuesta_supervisor = event.get("respuesta_supervisor", "")
+            if respuesta_supervisor and respuesta_supervisor not in sent_contents:
+                sent_contents.add(respuesta_supervisor)
+                payload = json.dumps(
+                    {"content": respuesta_supervisor, "agent": "codi"},
+                    ensure_ascii=False,
+                )
+                yield f"data: {payload}\n\n"
+                continue  # no buscamos más mensajes en este evento
+
+            #para cada uno de los agentes especializados
             mensajes = event.get("mensajes", [])
             if not mensajes:
                 continue

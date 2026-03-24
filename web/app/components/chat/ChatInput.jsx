@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/app/components/ui/button";
 import { Send, Square } from 'lucide-react';
 
-export default function ChatInput({ onSend, isLoading }) {
+export default function ChatInput({ onSend, onStop, isLoading }) {
     const [message, setMessage] = useState('');
     const textareaRef = useRef(null);
 
@@ -15,7 +15,11 @@ export default function ChatInput({ onSend, isLoading }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!message.trim() || isLoading) return;
+        if (isLoading) {
+            onStop?.();
+            return;
+        }
+        if (!message.trim()) return;
         onSend(message.trim());
         setMessage('');
     };
@@ -36,15 +40,16 @@ export default function ChatInput({ onSend, isLoading }) {
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Escribe tu mensaje..."
+                        placeholder={isLoading ? "Codi está escribiendo..." : "Escribe tu mensaje..."}
+                        disabled={isLoading}
                         rows={1}
-                        className="flex-1 resize-none bg-transparent px-4 py-3.5 pr-14 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-[200px]"
+                        className="flex-1 resize-none bg-transparent px-4 py-3.5 pr-14 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-[200px] disabled:opacity-60"
                     />
                     <div className="absolute right-2 bottom-2">
                         <Button
                             type="submit"
                             size="icon"
-                            disabled={!message.trim() && !isLoading}
+                            disabled={!isLoading && !message.trim()}
                             className="h-8 w-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-30 transition-all"
                         >
                             {isLoading

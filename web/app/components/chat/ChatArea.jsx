@@ -6,14 +6,14 @@ import MessageBubble from './MessageBubble';
 import WelcomeScreen from './WelcomeScreen';
 import ChatInput from './ChatInput';
 
-export default function ChatArea({ messages = [], isLoading = false, onSend = () => {} }) {
+export default function ChatArea({ messages = [], isLoading = false, onSend = () => {}, onStop = () => {} }) {
     const bottomRef = useRef(null);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const hasMessages = messages && messages.length > 0;
+    const hasMessages = messages.length > 0;
 
     return (
         <div className="flex h-full w-full flex-col">
@@ -43,7 +43,7 @@ export default function ChatArea({ messages = [], isLoading = false, onSend = ()
                     
                     {/* BARRA DE INPUT ANCLADA AL FONDO */}
                     <div className="shrink-0 w-full pb-2">
-                        <ChatInput onSend={onSend} isLoading={isLoading} />
+                        <ChatInput onSend={onSend} isLoading={isLoading} onStop={onStop} />
                     </div>
                 </>
             ) : (
@@ -53,7 +53,7 @@ export default function ChatArea({ messages = [], isLoading = false, onSend = ()
                     <div className="w-full flex flex-col items-center gap-2 transform -translate-y-8">
                         <WelcomeScreen onSuggestionClick={onSend} />
                         <div className="w-full">
-                            <ChatInput onSend={onSend} isLoading={isLoading} />
+                            <ChatInput onSend={onSend} isLoading={isLoading} onStop={onStop} />
                         </div>
                     </div>
                 </div>
