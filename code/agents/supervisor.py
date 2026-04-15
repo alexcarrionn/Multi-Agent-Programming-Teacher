@@ -1,3 +1,5 @@
+import json
+import re
 from langchain_groq import ChatGroq
 from agents.agentType import AgentType
 from typing import Literal
@@ -9,18 +11,30 @@ from config.settings import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-import json
 
-#definimos nuestro llm según el modelo configurado
-'''if settings.LLM_MODEL.startswith("gemini"):
-    llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
+#Definimos el LLM según el proveedor configurado
+if settings.LLM_MODEL.startswith("gemini"):
+    llm = ChatGoogleGenerativeAI(
+        model=settings.LLM_MODEL,
+        google_api_key=settings.LLM_API_KEY,
+        temperature=0,
+        request_timeout=120,
+        max_tokens=1024,
+    )
 elif settings.LLM_MODEL.startswith("gpt"):
-    llm = ChatOpenAI(model=settings.LLM_MODEL, base_url=settings.LLM_URL, api_key=settings.LLM_API_KEY, temperature=0.2)
+    llm = ChatOpenAI(
+        model=settings.LLM_MODEL.replace("gpt-oss/", ""),
+        base_url=settings.LLM_URL,
+        api_key=settings.LLM_API_KEY,
+        temperature=0.2,
+        request_timeout=120,
+        max_tokens=1024,
+        frequency_penalty=0.3,
+    )
 elif settings.LLM_MODEL.startswith("groq"):
-    llm = ChatGroq(model=settings.LLM_MODEL, temperature=0)
-'''
-#llm = ChatOpenAI(model=settings.LLM_MODEL.replace("ollama/", ""), base_url=settings.LLM_URL,api_key=settings.LLM_API_KEY,temperature=0.2)
-llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
+    llm = ChatGroq(model=settings.LLM_MODEL, temperature=0, request_timeout=60)
+else:
+    raise ValueError(f"Modelo no soportado en supervisor: {settings.LLM_MODEL}")
 
 # Miembros del equipo
 miembros = [AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value, AgentType.EVALUADOR.value, AgentType.CRITICO.value]
@@ -61,46 +75,96 @@ def _ultimo_mensaje_usuario(state) -> str:
             return mensaje[1]
     return ""
 
-def _ckeck_mensaje_ambito(query : str) -> bool:
+def _ckeck_mensaje_ambito(query: str) -> bool:
     if not query.strip():
         return False
-    try: 
-        retriver = create_retriever()
-        docs = retriver.get_relevant_documents(query, top_k=MIN_DOCS_RELEVANTES)
+    try:
+        retriver = create_retriever(top_k=MIN_DOCS_RELEVANTES)
+        docs = retriver.invoke(query)
         return len(docs) >= MIN_DOCS_RELEVANTES
-    except Exception: 
-        # Si el retriever falla por cualquier motivo, pasamos para no bloquear 
+    except Exception:
+        # Si el retriever falla por cualquier motivo, pasamos para no bloquear
         return True
 
 
-#Funcion princiapl del supervisor, se encarga de recibir el estado actual y construir una respuesta utilizando el prompt y el llm
-def nodo_supervisor(state):
-    #Construimos la cadena de procesamiento del supervisor, que incluye el prompt y el llm
-    chain = prompt_supervisor | llm
-    #con gemini u otro que no sea ollama
-    #chain = prompt_supervisor | llm.with_structured_output(Router)
-    #Contruimos la respuesta del supervisor, incluyendo los mensajes previos
-    response = chain.invoke({
-        "mensajes": state["mensajes"]
-    })
+def _parse_supervisor_response(text: str) -> dict | None:
+    """Extrae el dict JSON de la respuesta del LLM, tolerando fences y texto alrededor."""
+    text = text.strip()
 
-    #Con gemini esta parte no haría falta porque el modelo ya lo devuelve como un objeto estructurado. 
-    raw_content = (response.content or "").strip()
-    # Toleramos respuestas con fences ```json ... ``` para evitar caídas por formato.
-    if raw_content.startswith("```"):
-        lines = raw_content.splitlines()
-        if lines and lines[0].startswith("```"):
+    # 1. Quitar fences ```json ... ```
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines[0].startswith("```"):
             lines = lines[1:]
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
-        raw_content = "\n".join(lines).strip()
+        text = "\n".join(lines).strip()
 
+    # 2. Intento directo
     try:
-        data = json.loads(raw_content)
+        return json.loads(text)
     except Exception:
-        raise ValueError(f"Respuesta no válida del LLM: {response.content}")
+        pass
 
-    # Defaults defensivos para evitar KeyError si falta alguna clave en la salida del LLM.
+    # 3. Buscar el primer bloque {...} en el texto (el modelo puede añadir texto antes/después)
+    match = re.search(r'\{.*?\}', text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            pass
+
+    return None
+
+
+def _normalizar(texto: str) -> str:
+    """Elimina tildes para comparaciones robustas en español."""
+    replacements = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n"}
+    for acentuada, simple in replacements.items():
+        texto = texto.replace(acentuada, simple)
+    return texto
+
+
+def _fallback_routing(user_message: str) -> dict:
+    """Fallback cuando el LLM no genera JSON válido: usa heurísticas sobre el texto del usuario."""
+    msg = _normalizar(user_message.lower())
+    if any(w in msg for w in ["ejemplo", "muestrame", "muestra", "show", "example", "demuestra"]):
+        next_agent = "demostrador"
+    elif any(w in msg for w in ["evalua", "califica", "nota", "puntuacion", "evaluate", "grade"]):
+        next_agent = "evaluador"
+    elif any(w in msg for w in ["feedback", "mejora", "critica", "revisa", "fallo", "error", "review", "que esta mal", "que falla"]):
+        next_agent = "critico"
+    elif any(w in msg for w in ["hola", "buenas", "hello", "gracias", "adios", "bye", "thanks"]):
+        next_agent = "FINISH"
+    else:
+        next_agent = "educador"
+
+    return {
+        "next_agent": next_agent,
+        "enunciado": "",
+        "codigo_alumno": "",
+        "idioma": "es",
+        "respuesta": "",
+    }
+
+
+#Funcion principal del supervisor, se encarga de recibir el estado actual y construir una respuesta utilizando el prompt y el llm
+def nodo_supervisor(state):
+    chain = prompt_supervisor | llm
+    response = chain.invoke({
+        "mensajes": state["mensajes"][-6:],
+    })
+
+    raw_content = response.content or ""
+
+    # Intentar parsear la respuesta del LLM como JSON
+    data = _parse_supervisor_response(raw_content)
+
+    # Si el modelo ignoró el formato JSON, usar heurística sobre el último mensaje del usuario
+    if data is None:
+        data = _fallback_routing(_ultimo_mensaje_usuario(state))
+
+    # Defaults defensivos por si algún campo quedó vacío.
     data.setdefault("next_agent", "FINISH")
     data.setdefault("enunciado", "")
     data.setdefault("codigo_alumno", "")
@@ -135,11 +199,9 @@ def nodo_supervisor(state):
         "respuesta_supervisor": "",
     }
 
-    #definimos el enunciado y el codigo del alumno en el estado (con gemini se usa directamente response)
-    if data.get("enunciado"):
-        result["enunciado"] = data["enunciado"]
-    if data.get("codigo_alumno"):
-        result["codigo_alumno"] = data["codigo_alumno"]
+    # Siempre escribimos enunciado y codigo_alumno para limpiar valores de turnos anteriores
+    result["enunciado"] = data.get("enunciado", "")
+    result["codigo_alumno"] = data.get("codigo_alumno", "")
 
     # Si el supervisor responde directamente (FINISH con respuesta), guardamos la respuesta en el estado
     respuesta_directa = data.get("respuesta", "").strip()

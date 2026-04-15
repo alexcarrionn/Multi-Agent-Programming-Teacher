@@ -18,7 +18,7 @@ export async function sendChatMessage(message, signal) {
     // Si la respuesta no es exitosa, intentamos obtener el mensaje de error del cuerpo de la respuesta y lanzamos un error con ese mensaje.
     if (!response.ok) {
         const errorText = await response.json().catch(() => ({}));
-        throw new Error(errorText.error || `Error: ${response.status}`);
+        throw new Error(errorText.error || errorText.detail || `Error: ${response.status}`);
     }
 
     return response.body; // Devolvemos el ReadableStream para procesar los eventos SSE

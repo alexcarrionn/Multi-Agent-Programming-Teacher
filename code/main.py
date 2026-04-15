@@ -110,7 +110,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://showers-performance-chargers-eye.trycloudflare.com",  # ← añade tu dominio
+        "https://showers-performance-chargers-eye.trycloudflare.com",  # ← añadimos el dominio
     ],
     allow_credentials=True,
     allow_methods=["*"],

@@ -33,6 +33,27 @@ export function useChat() {
             const decoder = new TextDecoder();
 
             let buffer = "";
+            let streamFinished = false;
+
+            const applyBotChunk = (parsed) => {
+                setMessages(prev => {
+                    const updated = [...prev];
+                    const last = updated[updated.length - 1];
+                    if (!last || last.role !== "bot") return updated;
+
+                    const chunkContent = typeof parsed.content === "string" ? parsed.content : "";
+                    const chunkError = typeof parsed.error === "string" ? parsed.error : "";
+
+                    if (!chunkContent && !chunkError && !parsed.agent) return updated;
+
+                    updated[updated.length - 1] = {
+                        ...last,
+                        content: chunkError || (last.content + chunkContent),
+                        agent: parsed.agent ?? last.agent,
+                    };
+                    return updated;
+                });
+            };
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -40,38 +61,44 @@ export function useChat() {
 
                 buffer += decoder.decode(value, { stream: true });
 
-                //Dividimos por lineas y dejamos la ultima incompleta en el buffer
-                const lines = buffer.split("\n");
-                buffer = lines.pop();
+                // Procesamos eventos SSE completos (separados por línea en blanco)
+                const events = buffer.split("\n\n");
+                buffer = events.pop() ?? "";
 
-                // Procesamos cada linea que empiece por "data: "
-                for (const line of lines) {
-                    if (!line.startsWith("data: ")) continue;
+                for (const evt of events) {
+                    const dataLines = evt
+                        .split("\n")
+                        .filter((line) => line.startsWith("data:"))
+                        .map((line) => line.slice(5).trim());
 
-                    // Extraemos el contenido después de "data: "
-                    const rawData = line.slice(6).trim();
-                    //Si en el conenido recibimos el evento [DONE], significa que el backend ha terminado de enviar mensajes, por lo que salimos del bucle
+                    if (dataLines.length === 0) continue;
+
+                    const rawData = dataLines.join("\n");
                     if (rawData === "[DONE]") {
+                        streamFinished = true;
                         break;
                     }
 
                     try {
                         const parsed = JSON.parse(rawData);
-                        // Actualizamos el último mensaje del bot con el nuevo contenido y el agente
-                        setMessages(prev => {
-                            const updated = [...prev];
-                            const last = updated[updated.length - 1];
-                            if (last?.role === "bot") {
-                                updated[updated.length - 1] = {
-                                    ...last,
-                                    content: last.content + (parsed.content ?? ""),
-                                    agent: parsed.agent ?? last.agent,
-                                };
-                            }
-                            return updated;
-                        });
+                        applyBotChunk(parsed);
                     } catch {
-                        // chunk malformado → lo ignoramos
+                        // Si llega texto suelto, lo tratamos como contenido plano
+                        applyBotChunk({ content: rawData });
+                    }
+                }
+
+                if (streamFinished) break;
+            }
+
+            // Si queda un bloque parcial al final, intentamos procesarlo.
+            if (buffer.trim().startsWith("data:")) {
+                const rawData = buffer.replace(/^data:\s*/, "").trim();
+                if (rawData && rawData !== "[DONE]") {
+                    try {
+                        applyBotChunk(JSON.parse(rawData));
+                    } catch {
+                        applyBotChunk({ content: rawData });
                     }
                 }
             }

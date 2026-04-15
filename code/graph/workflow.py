@@ -29,10 +29,23 @@ load_dotenv(find_dotenv())
 #llm = ChatGroq(model=settings.LLM_MODEL, temperature=0)
 
 if settings.LLM_MODEL.startswith("gemini"):
-    llm = ChatGoogleGenerativeAI(model=settings.LLM_MODEL, google_api_key=settings.LLM_API_KEY, temperature=0)
-elif settings.LLM_MODEL.startswith("gpt-oss"):
-#Se puede definir con gpt-oss
-    llm = ChatOpenAI(model=settings.LLM_MODEL, base_url=settings.LLM_URL, api_key=settings.LLM_API_KEY, temperature=0.2)
+    llm = ChatGoogleGenerativeAI(
+        model=settings.LLM_MODEL,
+        google_api_key=settings.LLM_API_KEY,
+        temperature=0,
+        request_timeout=120,
+        max_tokens=1024,
+    )
+elif settings.LLM_MODEL.startswith("gpt"):
+    llm = ChatOpenAI(
+        model=settings.LLM_MODEL.replace("gpt-oss/", ""),
+        base_url=settings.LLM_URL,
+        api_key=settings.LLM_API_KEY,
+        temperature=0.2,
+        request_timeout=120,
+        max_tokens=1024,
+        frequency_penalty=0.5,
+    )
 
 #Creamos otro nodo para poder guardar el progreso del alumno en la base de datos MySQL, este nodo se ejecuta despues 
 #del ciclo que se ejecuta entre el evaluador y el crítico, de esta forma nos aseguramos de que se guarda el progreso del 
@@ -106,7 +119,7 @@ def rag_node(state):
     }
 
 
-def _build_graph():    
+def _build_graph():
     """Construye y compila el grafo de estados del workflow."""
     #Creamos el grafo de estados del workflow
     graph_builder  = StateGraph(AgentState)
@@ -153,7 +166,7 @@ def _build_graph():
             AgentType.EVALUADOR.value: AgentType.EVALUADOR.value,
         }
     )
-    #educador puede pedirle un ejemplo al demostrador y ya salir 
+    #educador puede pedirle un ejemplo al demostrador y ya salir
     graph_builder.add_edge(AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value)
     graph_builder.add_edge(AgentType.DEMOSTRADOR.value, END)
 
@@ -173,41 +186,42 @@ graph = _build_graph()
 
 # Funcion para ejecutar el workflow y mostrar las actualizaciones en tiempo real
 def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int):
-    #Cambiamos esta funcion para que en lugar de ejecutar el grafo, ejecute el worflow y emita los eventos SSE con las respuestas
-
     config = {"configurable": {"thread_id": thread_id}}
 
-    #rastreamos los contenidos ya enviados para no duplicar información en el frontend
+    # Número de mensajes ya existentes en el checkpoint ANTES de este turno.
+    # Solo emitimos AIMessages que aparezcan MÁS ALLÁ de este índice,
+    # evitando que el primer evento del stream relance respuestas de turnos anteriores.
+    checkpoint = graph.get_state(config)
+    mensajes_previos = len(checkpoint.values.get("mensajes", [])) if checkpoint.values else 0
+
     sent_contents: set[str] = set()
 
-    try: 
-        events = graph.stream({"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id,"respuesta_supervisor": ""}, config, stream_mode="values")
+    try:
+        events = graph.stream(
+            {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": ""},
+            config,
+            stream_mode="values",
+        )
         for event in events:
-            #Si es una respuesta directa del supervisor
+            # Respuesta directa del supervisor (FINISH con texto)
             respuesta_supervisor = event.get("respuesta_supervisor", "")
             if respuesta_supervisor and respuesta_supervisor not in sent_contents:
                 sent_contents.add(respuesta_supervisor)
-                payload = json.dumps(
-                    {"content": respuesta_supervisor, "agent": "codi"},
-                    ensure_ascii=False,
-                )
+                payload = json.dumps({"content": respuesta_supervisor, "agent": "codi"}, ensure_ascii=False)
                 yield f"data: {payload}\n\n"
-                continue  # no buscamos más mensajes en este evento
-
-            #para cada uno de los agentes especializados
-            mensajes = event.get("mensajes", [])
-            if not mensajes:
                 continue
-            #obtenemos el ultimo mensaje generado por el agente
-            ultimo_mensaje = mensajes[-1]
 
-            #comprobamos que el mensajes es de la IA
+            # Respuesta de un agente especializado — solo mensajes nuevos de este turno
+            mensajes = event.get("mensajes", [])
+            nuevos = mensajes[mensajes_previos:]
+            if not nuevos:
+                continue
+            ultimo_mensaje = nuevos[-1]
+
             if isinstance(ultimo_mensaje, AIMessage) and ultimo_mensaje.content:
                 content = ultimo_mensaje.content.strip()
                 if content and content not in sent_contents:
                     sent_contents.add(content)
-                    # Intentamos detectar qué agente respondió
-                    # a partir de los campos del estado
                     agent = _detect_agent(event)
                     payload = json.dumps({"content": content, "agent": agent}, ensure_ascii=False)
                     yield f"data: {payload}\n\n"
