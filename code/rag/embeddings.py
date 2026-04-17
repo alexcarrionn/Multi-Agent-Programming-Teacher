@@ -6,7 +6,7 @@ import os
 #el embeddings nos va a servir para convertir el texto en vectores numéricos que puedan ser procesados 
 #por el modelo de lenguaje y el vectorstore (QDrant Cloud)
 def get_embeddings():
-    model_name = "BAAI/bge-m3"
+    model_name = settings.EMBEDDING_MODEL
     encode_kwargs = {'normalize_embeddings': True} 
     device = os.getenv("EMBEDDING_DEVICE", "cpu")
     embeddings_open_source = HuggingFaceEmbeddings(

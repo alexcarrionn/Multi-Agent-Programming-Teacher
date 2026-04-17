@@ -1,9 +1,8 @@
 import json
 import re
-from langchain_groq import ChatGroq
+#from langchain_groq import ChatGroq
 from agents.agentType import AgentType
 from typing import Literal
-from typing_extensions import TypedDict
 from rag.retriever import create_retriever
 from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -31,8 +30,8 @@ elif settings.LLM_MODEL.startswith("gpt"):
         max_tokens=1024,
         frequency_penalty=0.3,
     )
-elif settings.LLM_MODEL.startswith("groq"):
-    llm = ChatGroq(model=settings.LLM_MODEL, temperature=0, request_timeout=60)
+
+#llm = ChatGroq(model=settings.LLM_MODEL, temperature=0, request_timeout=60)
 else:
     raise ValueError(f"Modelo no soportado en supervisor: {settings.LLM_MODEL}")
 

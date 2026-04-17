@@ -5,7 +5,6 @@ from rag.qDrantClient import client
 from qdrant_client.models import FieldCondition, Filter, MatchValue, PayloadSchemaType
 from rag.embeddings import get_embeddings
 from config.settings import settings
-from qdrant_client.models import VectorParams, Distance
 
 # Función para indexar documentos utilizando el modelo BAAI/bge-m3 y almacenarlos en QDrant Cloud
 def index_documents(text: str, source_id: str = "default", content_hash: str | None = None, replace_existing_source: bool = True, file_path: str = ""):

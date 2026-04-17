@@ -1,5 +1,4 @@
 import polib
-import os
 
 def compile_po_to_mo(po_path):
     po = polib.pofile(po_path)

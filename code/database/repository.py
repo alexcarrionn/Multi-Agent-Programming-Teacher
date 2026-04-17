@@ -6,7 +6,6 @@ from database.models import AlumnoAula, Base, Alumno, Progreso
 from database.hash_password import hash_password, verify_password
 from config.settings import settings
 from i18n import setup_i18n
-import os
 import pandas as pd
 
 _ = setup_i18n("es")
