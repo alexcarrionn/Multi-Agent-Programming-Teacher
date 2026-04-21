@@ -86,10 +86,14 @@ export default function UserProfile() {
     };
 
         const handleDeleteAccount = async () => {
-        if (!confirm("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.")) {
+            
+        /*if (!confirm("¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.")) {
             return;
-        }
+        }*/
 
+        if (!confirm("¿Estás seguro de que deseas eliminar tu cuenta? Tus datos personales se eliminarán de forma permanente, pero tu progreso se conservará de forma anónima con fines de investigación educativa.")) {
+                 return;
+        }
         try {
             await axios.delete("/backend/api/delete-account", { withCredentials: true });
             await axios.post("/backend/api/logout", {}, { withCredentials: true });

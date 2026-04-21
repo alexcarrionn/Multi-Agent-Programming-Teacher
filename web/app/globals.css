@@ -261,6 +261,12 @@
 }
 
 
+/* Ocultar el ojo nativo del navegador (Edge/IE) en campos de contraseña */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 @media (max-width: 768px) {
   textarea {
     resize: none;

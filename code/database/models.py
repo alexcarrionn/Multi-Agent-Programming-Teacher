@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey
 from sqlalchemy.dialects.mysql import LONGTEXT as longText
 from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
@@ -8,6 +8,9 @@ vamos a tener una tabla de alumnos y una tabla de progresos.
 cada alumno puede tener un progreso asociado 
 que almacena su avance en los ejercicios, sus puntuaciones, retroalimentación y el ámbito donde mas dificultad tenga.
 """
+
+"""
+Esta clas ealumno se queda en el caso en el que un futuro se quiera borrar el progreso del alumno al borrar la cuenta 
 class Alumno(Base):
     __tablename__ = 'alumnos'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -16,6 +19,17 @@ class Alumno(Base):
     email = Column(String(255), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     progreso = relationship("Progreso", back_populates="alumno", cascade="all, delete-orphan")
+"""
+class Alumno(Base):
+    __tablename__ = 'alumnos'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False)
+    nivel = Column(String(50), nullable=True)
+    email = Column(String(255), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    anonimizado = Column(Boolean, default=False, nullable=False)
+    fecha_anonimizacion = Column(DateTime, nullable=True)
+    progreso = relationship("Progreso", back_populates="alumno")
 
 class Progreso(Base):
     """

@@ -8,7 +8,6 @@ import threading
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import Response
 
 
 # Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
@@ -205,26 +204,35 @@ def logout_alumno(response: Response):
 @app.put("/api/update-password")
 def actualizar_contraseña(datos: PasswordUpdateRequest, current_user: dict = Depends(get_current_user)):
     """Esta funcion se encargará de actualizar la contraseña del alumno actual."""
-    #Cambiamos la contraseña deñ alumno en la base de datos. 
+    if len(datos.password) < 8:
+        raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
     try:
-        #Si quiere actualizar la contraseña, primero comprobamos que la nueva contraseña sea segura 
-        if len(datos.password) < 8:
-            raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
-        #Aquí iría tu lógica para actualizar la contraseña en la base de datos, por ejemplo:
         update_password(current_user["alumno_id"], datos.password)
         return {"message": _("PASSWORD UPDATE SUCCESS")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("PASSWORD UPDATE ERROR") + f": {str(e)}")
-
+"""
 @app.delete("/api/delete-account")
 def eliminar_cuenta(current_user: dict = Depends(get_current_user)):
-    """Esta función se encargará de eliminar la cuenta del alumno actual."""
+    #Esta función se encargará de eliminar la cuenta del alumno actual.
     try:
         #Funcion que se encarga de eliminar al usuario de la base de datos. 
         eliminar_cuenta_alumno(current_user["alumno_id"])
         return {"message": _("ACCOUNT DELETION SUCCESS")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
+"""
+#Ponemos la funcion con alumnos anonimizado
+@app.delete("/api/delete-account")
+def eliminar_cuenta(response: Response, current_user: dict = Depends(get_current_user)):
+    #Esta función se encargará de anonimizar la cuenta del alumno actual conservando su progreso.
+    try:
+        eliminar_cuenta_alumno(current_user["alumno_id"])
+        response.delete_cookie(key="access_token")
+        return {"message": _("ACCOUNT DELETION SUCCESS")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
+
 
 #definimos el ChatRequest
 class ChatRequest(BaseModel):

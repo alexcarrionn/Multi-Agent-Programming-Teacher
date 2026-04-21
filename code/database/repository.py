@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 from sqlalchemy import create_engine, text
 
 from sqlalchemy.orm import sessionmaker
@@ -240,6 +241,11 @@ def update_password(alumno_id: int, new_password: str):
         raise
     finally:
         session.close()
+"""
+Esta funcion la dejaremos por si en un futuro queremos eliminar el progreso del alumno al eliminar su cuenta, 
+aunque por ahora se ha optado por una estrategia de anonimización de los datos del alumno, 
+en lugar de eliminar completamente su cuenta y progreso, para cumplir con las normativas de protección de datos y permitir la conservación 
+de información relevante para el análisis del uso del agente docente.
 
 #implementamos una funcion para eliminar la cuenta de un alumno en la base de datos MySQL
 def eliminar_cuenta_alumno(alumno_id: int):
@@ -251,6 +257,29 @@ def eliminar_cuenta_alumno(alumno_id: int):
             session.commit()
         else:
             raise ValueError(_("ALUMNO NOT FOUND"))
+    except Exception as e:
+        print(f"{_('ERROR DELETING ACCOUNT')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
+"""
+
+def eliminar_cuenta_alumno(alumno_id: int):
+    session = SessionLocal()
+    try:
+        alumno = session.query(Alumno).filter(Alumno.id == alumno_id).first()
+        if alumno is None:
+            raise ValueError(_("ALUMNO NOT FOUND"))
+
+        email_anonimizado = f"anonimo_{alumno.id}_{uuid.uuid4().hex[:8]}@anonimizado.local"
+        alumno.email = email_anonimizado
+        alumno.nombre = "Alumno Anonimizado"
+        alumno.password = "CUENTA_ELIMINADA"
+        alumno.anonimizado = True
+        alumno.fecha_anonimizacion = datetime.now()
+
+        session.commit()
     except Exception as e:
         print(f"{_('ERROR DELETING ACCOUNT')}: {e}")
         session.rollback()
