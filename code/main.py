@@ -8,15 +8,23 @@ import threading
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
+import smtplib
+import secrets
+from datetime import datetime, timedelta
+from email.mime.text import MIMEText
+from config.settings import settings
+from email.utils import formataddr
+
 
 # Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from auth.auth import create_access_token, get_current_user
-from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password, eliminar_cuenta_alumno, get_interacciones
+from database.repository import actualizar_base_datos, comprobacion_email, create_tables, get_alumno_by_email, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password, eliminar_cuenta_alumno, get_interacciones
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
+
 ASIGNATURA = "Introduccion_programacion"
 CARPETA_DOCUMENTOS = "data"
 DATA_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / ASIGNATURA
@@ -25,6 +33,7 @@ DATA_AUTORITHED_USER_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
 
 #Configuramos la internacionalización para mostrar los mensajes en el idioma del usuario, en este caso español
 _= setup_i18n("es")
+
 
 """Definimos WatchFiles para que se recargue la base de datos MySQL cada vez que se modifique el excel 
  con los alumnos autorizados, de esta forma el docente puede añadir o eliminar alumnos autorizados 
@@ -142,6 +151,13 @@ class PasswordUpdateRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 # --- Modelos de response (Swagger) ---
 
@@ -332,3 +348,77 @@ def obtener_interacciones(current_user: dict = Depends(get_current_user)):
         ]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener interacciones: {str(e)}")
+    
+# Almacenamiento temporal de tokens: {token: (email, expires_at)}
+_reset_tokens: dict[str, tuple[str, datetime]] = {}
+
+def _send_reset_email(recipient: str, reset_url: str):
+    msg = MIMEText(
+        f"Hola,\n\n"
+        f"Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Codi.\n\n"
+        f"Haz clic en el siguiente enlace para restablecerla (válido durante 1 hora):\n{reset_url}\n\n"
+        f"Si no has solicitado este cambio, ignora este correo.\n\n"
+        f"Un saludo,\nEl equipo de Codi",
+        _charset="utf-8",
+    )
+    msg["Subject"] = "Restablecer contraseña - Codi"
+    msg["From"] = formataddr((settings.BREVO_SENDER_NAME, settings.BREVO_SENDER_EMAIL))
+    msg["To"] = recipient
+
+    with smtplib.SMTP(settings.BREVO_SMTP_HOST, settings.BREVO_SMTP_PORT, timeout=10) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        smtp.login(settings.BREVO_SMTP_LOGIN, settings.BREVO_SMTP_KEY)
+        smtp.sendmail(settings.BREVO_SENDER_EMAIL, [recipient], msg.as_string())
+
+@app.post(
+    "/api/forgot-password",
+    summary="Recuperar contraseña",
+    description="Envía un correo al alumno con un enlace para restablecer su contraseña. Siempre devuelve éxito para no revelar si el email existe.",
+    response_model=MessageResponse,
+    tags=["auth"],
+)
+def forgot_password(datos: ForgotPasswordRequest):
+    import logging
+    alumno = get_alumno_by_email(datos.email)
+    if alumno and not alumno.anonimizado:
+        token = secrets.token_urlsafe(32)
+        reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
+        try:
+            _send_reset_email(datos.email, reset_url)
+            # Solo guardamos el token si el correo se envió con éxito
+            _reset_tokens[token] = (datos.email, datetime.now() + timedelta(hours=1))
+        except Exception as e:
+            # Logueamos el error internamente pero devolvemos 200 para no revelar si el email existe
+            logging.error(f"Error enviando email de reset a {datos.email}: {e}")
+    return {"message": _("FORGOT PASSWORD EMAIL SENT")}
+
+@app.post(
+    "/api/reset-password",
+    summary="Restablecer contraseña",
+    description="Restablece la contraseña del alumno usando el token enviado por correo.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        400: {"description": "Token inválido o expirado"},
+        500: {"description": "Error interno al actualizar la contraseña"},
+    }
+)
+def reset_password(datos: ResetPasswordRequest):
+    token_data = _reset_tokens.get(datos.token)
+    if not token_data or datetime.now() > token_data[1]:
+        _reset_tokens.pop(datos.token, None)
+        raise HTTPException(status_code=400, detail=_("INVALID OR EXPIRED TOKEN"))
+    if len(datos.new_password) < 8:
+        raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
+    email = token_data[0]
+    alumno = get_alumno_by_email(email)
+    if not alumno:
+        raise HTTPException(status_code=400, detail=_("ALUMNO NOT FOUND"))
+    try:
+        update_password(alumno.id, datos.new_password)
+        del _reset_tokens[datos.token]
+        return {"message": _("PASSWORD RESET SUCCESS")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("PASSWORD RESET ERROR") + f": {str(e)}")

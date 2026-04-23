@@ -103,3 +103,18 @@ msgstr "Sorry, I don't have information about that topic in the course material.
 
 msgid "ERROR SAVING INTERACTION"
 msgstr "Error saving the interaction with the agent."
+
+msgid "FORGOT PASSWORD EMAIL SENT"
+msgstr "If the email is registered, you will receive a link to reset your password shortly."
+
+msgid "ERROR SENDING EMAIL"
+msgstr "Error sending the email"
+
+msgid "INVALID OR EXPIRED TOKEN"
+msgstr "The link is invalid or has expired. Please request a new one."
+
+msgid "PASSWORD RESET SUCCESS"
+msgstr "Password reset successfully."
+
+msgid "PASSWORD RESET ERROR"
+msgstr "Error resetting the password. Please try again."

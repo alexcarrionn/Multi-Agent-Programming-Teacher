@@ -103,3 +103,18 @@ msgstr "Lo siento, no tengo información sobre ese tema en el material de la asi
 
 msgid "ERROR SAVING INTERACTION"
 msgstr "Error al guardar la interaccion con el agente docente"
+
+msgid "FORGOT PASSWORD EMAIL SENT"
+msgstr "Si el correo está registrado, recibirás en breve un enlace para restablecer tu contraseña."
+
+msgid "ERROR SENDING EMAIL"
+msgstr "Error al enviar el correo electrónico"
+
+msgid "INVALID OR EXPIRED TOKEN"
+msgstr "El enlace no es válido o ha caducado. Solicita uno nuevo."
+
+msgid "PASSWORD RESET SUCCESS"
+msgstr "Contraseña restablecida correctamente."
+
+msgid "PASSWORD RESET ERROR"
+msgstr "Error al restablecer la contraseña. Inténtalo de nuevo."

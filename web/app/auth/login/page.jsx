@@ -177,6 +177,13 @@ export default function Login()
           <p className="mt-4 text-sm text-gray-600 text-center">
             ¿No tienes una cuenta? <Link href="/auth/register" className="text-blue-600 font-semibold hover:underline">Regístrate aquí</Link>.
           </p>
+
+          {/*Enlace de "Olvidé mi contraseña"  */}
+          <p className="mt-4 text-sm text-gray-600 text-center">
+            <Link href="/auth/forgot-password" className="text-blue-600 font-semibold hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
         </form>
       </div>
     </main>

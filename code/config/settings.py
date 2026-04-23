@@ -47,4 +47,14 @@ class Settings:
     JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
     JWT_EXPIRATION = int(os.getenv("JWT_EXPIRATION")) # Expiración en minutos
 
+    # Brevo SMTP
+    BREVO_SMTP_HOST = os.getenv("BREVO_SMTP_HOST", "smtp-relay.brevo.com")
+    BREVO_SMTP_PORT = int(os.getenv("BREVO_SMTP_PORT", "587"))
+    BREVO_SMTP_LOGIN = os.getenv("BREVO_SMTP_LOGIN")
+    BREVO_SMTP_KEY = os.getenv("BREVO_SMTP_KEY")
+    BREVO_SENDER_EMAIL = os.getenv("BREVO_SENDER_EMAIL")   # email verificado en Brevo
+    BREVO_SENDER_NAME  = os.getenv("BREVO_SENDER_NAME", "Codi")
+
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 settings = Settings()
