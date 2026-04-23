@@ -9,12 +9,11 @@ from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
-
 # Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from auth.auth import create_access_token, get_current_user
-from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password, eliminar_cuenta_alumno
+from database.repository import actualizar_base_datos, comprobacion_email, create_tables, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password, eliminar_cuenta_alumno, get_interacciones
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
@@ -255,3 +254,19 @@ def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_u
             #con el x-Accel-Buffering: no se desactiva el buffering en Nginx para que los eventos se envíen al frontend en tiempo real, sin esperar a que se complete la respuesta completa.
             alumno_id=current_user["alumno_id"],), media_type="text/event-stream", headers={"Cache-Control": "no-cache","Connection": "keep-alive","X-Accel-Buffering": "no"})
 
+@app.get("/api/interacciones")
+def obtener_interacciones(current_user: dict = Depends(get_current_user)):
+    """Devuelve el historial de interacciones del alumno actual."""
+    try:
+        interacciones = get_interacciones(current_user["alumno_id"])
+        return {"interacciones": [
+            {
+                "mensaje_usuario": i.mensaje_usuario,
+                "respuesta_agente": i.respuesta_agente,
+                "tipo_interaccion": i.tipo_interaccion,
+                "fecha": i.fecha_interaccion.isoformat() if i.fecha_interaccion else None,
+            }
+            for i in interacciones
+        ]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener interacciones: {str(e)}")

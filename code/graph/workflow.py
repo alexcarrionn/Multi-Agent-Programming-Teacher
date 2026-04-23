@@ -12,7 +12,7 @@ from agents.educador import EducadorAgent
 from agents.demostrador import DemostradorAgent
 from agents.critico import CriticoAgent
 from agents.evaluador import EvaluadorAgent
-from database.repository import guardar_progreso
+from database.repository import guardar_progreso, guardar_interaccion
 from rag.retriever import create_retriever
 from config.settings import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -187,13 +187,13 @@ graph = _build_graph()
 def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int):
     config = {"configurable": {"thread_id": thread_id}}
 
-    # Número de mensajes ya existentes en el checkpoint ANTES de este turno.
-    # Solo emitimos AIMessages que aparezcan MÁS ALLÁ de este índice,
-    # evitando que el primer evento del stream relance respuestas de turnos anteriores.
     checkpoint = graph.get_state(config)
     mensajes_previos = len(checkpoint.values.get("mensajes", [])) if checkpoint.values else 0
 
     sent_contents: set[str] = set()
+    respuesta_completa: list[str] = []
+    ultimo_agente = "codi"
+    prev_event: dict = {}
 
     try:
         events = graph.stream(
@@ -207,6 +207,9 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
             if respuesta_supervisor and respuesta_supervisor not in sent_contents:
                 sent_contents.add(respuesta_supervisor)
                 payload = json.dumps({"content": respuesta_supervisor, "agent": "codi"}, ensure_ascii=False)
+                respuesta_completa.append(respuesta_supervisor)
+                ultimo_agente = "codi"
+                prev_event = event
                 yield f"data: {payload}\n\n"
                 continue
 
@@ -214,6 +217,7 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
             mensajes = event.get("mensajes", [])
             nuevos = mensajes[mensajes_previos:]
             if not nuevos:
+                prev_event = event
                 continue
             ultimo_mensaje = nuevos[-1]
 
@@ -221,28 +225,35 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
                 content = ultimo_mensaje.content.strip()
                 if content and content not in sent_contents:
                     sent_contents.add(content)
-                    agent = _detect_agent(event)
+                    agent = _detect_agent(event, prev_event)
                     payload = json.dumps({"content": content, "agent": agent}, ensure_ascii=False)
+                    respuesta_completa.append(content)
+                    ultimo_agente = agent
                     yield f"data: {payload}\n\n"
-            
+
+            prev_event = event
+
     except Exception as e:
         error_payload = json.dumps({"error": str(e)}, ensure_ascii=False)
         yield f"data: {error_payload}\n\n"
     finally:
-        # Al finalizar el stream, enviamos un evento indicando que ha terminado
         yield "data: [DONE]\n\n"
+        if respuesta_completa and alumno_id:
+            guardar_interaccion(
+                alumno_id=alumno_id,
+                mensaje_usuario=user_input,
+                respuesta_agente="\n\n".join(respuesta_completa),
+                tipo_interaccion=ultimo_agente
+            )
 
-#configuramos una funcion para detectar el agente 
-def _detect_agent(event: dict) -> str:
-    """Función para detectar qué agente ha generado la respuesta a partir del estado del grafo."""
-    # Comprobamos la presencia de claves específicas en el estado para inferir el agente
-    if event.get("explicaciones"):
-        return AgentType.EDUCADOR.value
-    elif event.get("demostraciones"):
-        return AgentType.DEMOSTRADOR.value
-    elif event.get("puntuacion") is not None:
+def _detect_agent(event: dict, prev: dict) -> str:
+    """Detecta el agente comparando el estado actual con el anterior para ver qué cambió en este turno."""
+    if event.get("puntuacion") is not None and event.get("puntuacion") != prev.get("puntuacion"):
         return AgentType.EVALUADOR.value
-    elif event.get("feedback"):
+    if event.get("feedback") and event.get("feedback") != prev.get("feedback"):
         return AgentType.CRITICO.value
-    else:
-        return "codi"
+    if event.get("explicaciones") and event.get("explicaciones") != prev.get("explicaciones"):
+        return AgentType.EDUCADOR.value
+    if event.get("demostraciones") and event.get("demostraciones") != prev.get("demostraciones"):
+        return AgentType.DEMOSTRADOR.value
+    return "codi"

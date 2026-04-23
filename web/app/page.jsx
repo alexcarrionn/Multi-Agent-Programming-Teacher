@@ -31,7 +31,7 @@ export default function Home() {
       {/* Footer fijo abajo */}
       <div className="shrink-0 flex items-center justify-center bg-gray-50 px-4 py-2 relative z-10">
         <p className="text-xs text-gray-500 text-center max-w-3xl">
-          Codi es una IA de apoyo educativo y puede cometer errores.
+          Codi es una IA de apoyo educativo y puede cometer errores. Para cualquier duda o problema, contacta con el equipo docente de la asignatura.
         </p>
       </div>
     </main>

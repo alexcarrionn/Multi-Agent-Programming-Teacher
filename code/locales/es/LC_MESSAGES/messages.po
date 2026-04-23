@@ -100,3 +100,6 @@ msgstr "La contraseña tiene que te tener un mínimo de 8 carácteres."
 
 msgid "MESSAGE NOT SIGNATURE"
 msgstr "Lo siento, no tengo información sobre ese tema en el material de la asignatura. Solo puedo ayudarte con los contenidos de la asignatura. ¿Tienes alguna duda sobre los temas de la asignatura?"
+
+msgid "ERROR SAVING INTERACTION"
+msgstr "Error al guardar la interaccion con el agente docente"

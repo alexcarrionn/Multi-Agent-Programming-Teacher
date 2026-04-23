@@ -202,8 +202,10 @@ def nodo_supervisor(state):
     result["enunciado"] = data.get("enunciado", "")
     result["codigo_alumno"] = data.get("codigo_alumno", "")
 
-    # Si el supervisor responde directamente (FINISH con respuesta), guardamos la respuesta en el estado
-    respuesta_directa = data.get("respuesta", "").strip()
-    if respuesta_directa:
-        result["respuesta_supervisor"] = respuesta_directa
+    # Solo se usa la respuesta directa cuando next_agent es FINISH.
+    # Si el LLM mete texto en "respuesta" al enrutar a un agente, lo ignoramos.
+    if data["next_agent"] == "FINISH":
+        respuesta_directa = data.get("respuesta", "").strip()
+        if respuesta_directa:
+            result["respuesta_supervisor"] = respuesta_directa
     return result

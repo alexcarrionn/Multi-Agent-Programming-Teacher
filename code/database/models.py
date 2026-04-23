@@ -30,6 +30,7 @@ class Alumno(Base):
     anonimizado = Column(Boolean, default=False, nullable=False)
     fecha_anonimizacion = Column(DateTime, nullable=True)
     progreso = relationship("Progreso", back_populates="alumno")
+    interacciones = relationship("Interaccion", back_populates="alumno")
 
 class Progreso(Base):
     """
@@ -60,3 +61,17 @@ class AlumnoAula(Base):
     nombre = Column(String(100), nullable=False)
     correo = Column(String(255), unique=True, nullable=False)
     dni = Column(String(20), nullable=True)
+
+class Interaccion(Base): 
+    """En esta tabla se van a almacenar las interacciones que tenga el alumno con el agente docente, 
+    ya no solo va a existir ese progreso que va a hacer sino que tambien se va a poder visualizar todo lo que el alumno 
+    ha preguntado al agente docente, las respuestas de este y la fecha de cada interacción."""
+    __tablename__ = 'interacciones'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    alumno_id = Column(Integer, ForeignKey('alumnos.id'), nullable=False)
+    mensaje_usuario = Column(longText, nullable=True)
+    respuesta_agente = Column(longText, nullable=True)
+    fecha_interaccion = Column(DateTime, nullable=True)
+    tipo_interaccion = Column(String(50), nullable=True)  # Por ejemplo: "consulta", "retroalimentación", etc.
+
+    alumno = relationship("Alumno", back_populates="interacciones")

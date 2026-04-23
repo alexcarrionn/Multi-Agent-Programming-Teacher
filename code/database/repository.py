@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import create_engine, text
 
 from sqlalchemy.orm import sessionmaker
-from database.models import AlumnoAula, Base, Alumno, Progreso
+from database.models import AlumnoAula, Base, Alumno, Progreso, Interaccion
 from database.hash_password import hash_password, verify_password
 from config.settings import settings
 from i18n import setup_i18n
@@ -34,7 +34,7 @@ def tablas_existen() -> bool:
     try:
         result = session.execute(text("SHOW TABLES;"))
         tables = [row[0] for row in result.fetchall()]
-        return "alumnos" in tables and "progresos" in tables and "alumnos_aula" in tables
+        return "alumnos" in tables and "progresos" in tables and "alumnos_aula" in tables and "interacciones" in tables
     finally:
         session.close()
 
@@ -284,5 +284,33 @@ def eliminar_cuenta_alumno(alumno_id: int):
         print(f"{_('ERROR DELETING ACCOUNT')}: {e}")
         session.rollback()
         raise
+    finally:
+        session.close()
+
+def guardar_interaccion(alumno_id: int, mensaje_usuario: str, respuesta_agente: str, tipo_interaccion: str):
+    session = SessionLocal()
+    try:
+        interaccion = Interaccion(
+            alumno_id=alumno_id,
+            mensaje_usuario=mensaje_usuario,
+            respuesta_agente=respuesta_agente,
+            tipo_interaccion=tipo_interaccion,
+            fecha_interaccion=datetime.now()
+        )
+        session.add(interaccion)
+        session.commit()
+    except Exception as e:
+        print(f"Error guardando interacción: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+def get_interacciones(alumno_id: int):
+    session = SessionLocal()
+    try:
+        return session.query(Interaccion).filter(
+            Interaccion.alumno_id == alumno_id
+        ).order_by(Interaccion.fecha_interaccion.desc()).all()
     finally:
         session.close()
