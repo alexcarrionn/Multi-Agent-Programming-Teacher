@@ -10,7 +10,7 @@ que almacena su avance en los ejercicios, sus puntuaciones, retroalimentación y
 """
 
 """
-Esta clas ealumno se queda en el caso en el que un futuro se quiera borrar el progreso del alumno al borrar la cuenta 
+Esta clase alumno se queda en el caso en el que un futuro se quiera borrar el progreso del alumno al borrar la cuenta 
 class Alumno(Base):
     __tablename__ = 'alumnos'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -75,3 +75,4 @@ class Interaccion(Base):
     tipo_interaccion = Column(String(50), nullable=True)  # Por ejemplo: "consulta", "retroalimentación", etc.
 
     alumno = relationship("Alumno", back_populates="interacciones")
+

@@ -125,33 +125,13 @@ async def cors_middleware(request: Request, call_next):
         response.headers["Access-Control-Allow-Methods"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "*"
     return response
-#Definimos una funcion en la que se registre un usuario
+# --- Modelos de request ---
+
 class AlumnoCreate(BaseModel):
     nombre: str
     email: str
     password: str
     nivel: str
-
-
-@app.post("/api/register")
-async def registrar_alumno(datos: AlumnoCreate):
-
-    """Esta funcion recibirá los datos de registro del alumno desde el frontend, comprobará el email y si es correcto lo registrará"""
-    if not datos.email.endswith("@um.es"):
-       raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
-    
-    #Ponemos la logica de comprobacion de email autorizado 
-    if not comprobacion_email(datos.email):
-        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT AUTHORIZED"))
-    
-    #Si el email es correcto y esta autorizado, registramos al alumno en la base de datos MySQL
-    try: 
-        register_alumno(email=datos.email, plain_password=datos.password, nombre=datos.nombre, nivel=datos.nivel)
-        return {"message": _("REGISTRATION SUCCESS")}
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=_("REGISTRATION ERROR") + f": {str(e)}")
 
 class AlumnoLogin(BaseModel):
     email: str
@@ -160,49 +140,119 @@ class AlumnoLogin(BaseModel):
 class PasswordUpdateRequest(BaseModel):
     password: str
 
-#definimos la funcion que comprobará las credenciales del alumno para poder iniciar sesión, ademas 
-# usaremos el token del alumno para mantener la sesión iniciada y poder mostrar su progreso y personalizar su experiencia.
-@app.post("/api/login")
+class ChatRequest(BaseModel):
+    message: str
+
+# --- Modelos de response (Swagger) ---
+
+class MessageResponse(BaseModel):
+    message: str
+
+class AlumnoDataResponse(BaseModel):
+    email: str
+    nombre: str
+    nivel: str
+    alumno_id: int
+
+class InteraccionItem(BaseModel):
+    mensaje_usuario: str
+    respuesta_agente: str
+    tipo_interaccion: str
+    fecha: str | None
+
+class InteraccionesResponse(BaseModel):
+    interacciones: list[InteraccionItem]
+
+# --- Endpoints de autenticación ---
+
+@app.post(
+    "/api/register",
+    summary="Registrar alumno",
+    description="Registra un nuevo alumno. El email debe ser @um.es y estar en la lista de alumnos autorizados.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        400: {"description": "Email no válido, no autorizado o alumno ya existente"},
+        500: {"description": "Error interno al registrar"},
+    }
+)
+async def registrar_alumno(datos: AlumnoCreate):
+    if not datos.email.endswith("@um.es"):
+       raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
+    if not comprobacion_email(datos.email):
+        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT AUTHORIZED"))
+    try:
+        register_alumno(email=datos.email, plain_password=datos.password, nombre=datos.nombre, nivel=datos.nivel)
+        return {"message": _("REGISTRATION SUCCESS")}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("REGISTRATION ERROR") + f": {str(e)}")
+
+@app.post(
+    "/api/login",
+    summary="Iniciar sesión",
+    description="Autentica al alumno y establece una cookie JWT HttpOnly para mantener la sesión.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        401: {"description": "Credenciales inválidas"},
+    }
+)
 def login_alumno(datos: AlumnoLogin, response: Response):
-    """Esta funcion se encargará de autenticar al alumno y devolver un token de acceso para mantener la sesión iniciada"""
     alumno = authenticate_alumno(datos.email, datos.password)
     if not alumno:
         raise HTTPException(status_code=401, detail=_("ERROR INVALID CREDENTIALS"))
-    
-    # Generar token de acceso
     token = create_access_token({
         "sub": alumno.email,
         "nombre": alumno.nombre,
         "nivel": alumno.nivel,
         "alumno_id": alumno.id,
-        })
-    
-    #creamos la respuesta que se le va a dar al frontend
-    response.set_cookie(key="access_token", 
-                        value=token, 
-                        httponly=True, 
-                        secure=False, 
-                        samesite="lax",     #Esto se puede cambiar cuando usemos HHTPS en producción, para mejorar la seguridad
+    })
+    response.set_cookie(key="access_token",
+                        value=token,
+                        httponly=True,
+                        secure=False,
+                        samesite="lax",
                         max_age=3600)
-    
     return {"message": _("LOGIN SUCCESS")}
 
-#Definimos una funcion que nos devuelva los datos del alumno actual a partir del token 
-@app.get("/api/me")
+@app.get(
+    "/api/me",
+    summary="Obtener datos del alumno",
+    description="Devuelve el perfil del alumno autenticado a partir de su cookie JWT.",
+    response_model=AlumnoDataResponse,
+    tags=["auth"],
+    responses={
+        401: {"description": "No autenticado o token inválido"},
+    }
+)
 def obtener_datos_alumno_actual(current_user: dict = Depends(get_current_user)):
-    """Esta funcion se encargará de devolver los datos del alumno actual a partir del token de acceso"""
     return {"email": current_user["sub"], "nombre": current_user["nombre"], "nivel": current_user["nivel"], "alumno_id": current_user["alumno_id"]}
 
-#Definimos una funcion para poder cerrar la sesion del alumno actual, eliminamos la cookie. 
-@app.post("/api/logout")
+@app.post(
+    "/api/logout",
+    summary="Cerrar sesión",
+    description="Elimina la cookie JWT y cierra la sesión del alumno.",
+    response_model=MessageResponse,
+    tags=["auth"],
+)
 def logout_alumno(response: Response):
-    """Esta funcion se encargará de cerrar la sesión del alumno"""
     response.delete_cookie(key="access_token")
     return {"message": _("GOODBYE MESSAGE")}
 
-@app.put("/api/update-password")
+@app.put(
+    "/api/update-password",
+    summary="Cambiar contraseña",
+    description="Actualiza la contraseña del alumno autenticado. Mínimo 8 caracteres.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        400: {"description": "Contraseña demasiado corta"},
+        500: {"description": "Error interno al actualizar"},
+    }
+)
 def actualizar_contraseña(datos: PasswordUpdateRequest, current_user: dict = Depends(get_current_user)):
-    """Esta funcion se encargará de actualizar la contraseña del alumno actual."""
     if len(datos.password) < 8:
         raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
     try:
@@ -210,21 +260,18 @@ def actualizar_contraseña(datos: PasswordUpdateRequest, current_user: dict = De
         return {"message": _("PASSWORD UPDATE SUCCESS")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("PASSWORD UPDATE ERROR") + f": {str(e)}")
-"""
-@app.delete("/api/delete-account")
-def eliminar_cuenta(current_user: dict = Depends(get_current_user)):
-    #Esta función se encargará de eliminar la cuenta del alumno actual.
-    try:
-        #Funcion que se encarga de eliminar al usuario de la base de datos. 
-        eliminar_cuenta_alumno(current_user["alumno_id"])
-        return {"message": _("ACCOUNT DELETION SUCCESS")}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
-"""
-#Ponemos la funcion con alumnos anonimizado
-@app.delete("/api/delete-account")
+
+@app.delete(
+    "/api/delete-account",
+    summary="Eliminar cuenta",
+    description="Anonimiza la cuenta del alumno conservando su progreso académico. Cierra la sesión al finalizar.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        500: {"description": "Error interno al eliminar la cuenta"},
+    }
+)
 def eliminar_cuenta(response: Response, current_user: dict = Depends(get_current_user)):
-    #Esta función se encargará de anonimizar la cuenta del alumno actual conservando su progreso.
     try:
         eliminar_cuenta_alumno(current_user["alumno_id"])
         response.delete_cookie(key="access_token")
@@ -232,31 +279,46 @@ def eliminar_cuenta(response: Response, current_user: dict = Depends(get_current
     except Exception as e:
         raise HTTPException(status_code=500, detail=_("ACCOUNT DELETION ERROR") + f": {str(e)}")
 
+# --- Endpoints de chat ---
 
-#definimos el ChatRequest
-class ChatRequest(BaseModel):
-    message: str
-
-
-@app.post("/api/chat")
+@app.post(
+    "/api/chat",
+    summary="Enviar mensaje al agente",
+    description=(
+        "Envía un mensaje al agente docente y recibe la respuesta como stream de Server-Sent Events (SSE). "
+        "Cada evento tiene el formato: `data: {\"content\": \"...\", \"agent\": \"educador|demostrador|evaluador|critico|codi\"}`. "
+        "El stream finaliza con `data: [DONE]`."
+    ),
+    tags=["chat"],
+    responses={
+        401: {"description": "No autenticado"},
+    }
+)
 def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_user)):
-    """El endPoint de chat es aquel que recibe los mensajes del usuario y devuelve las respuestas del agente, 
-    como un stream de eventos Server-Sent Events (SSE) para que el frontend pueda mostrar la respuesta del agente en tiempo real.
-
-    Cada evento tiene el formato " data: {"content": "...", "agent": "educador|demostrador|evaluador|critico"}
-    """
-    #Vamos a usar el id del usuario para poder mantener la conversación personalizada
     thread_id = str(current_user["alumno_id"])
-
-    return StreamingResponse(stream_graph_updates(user_input=datos.message,
+    return StreamingResponse(
+        stream_graph_updates(
+            user_input=datos.message,
             thread_id=thread_id,
             user_level=current_user["nivel"],
-            #con el x-Accel-Buffering: no se desactiva el buffering en Nginx para que los eventos se envíen al frontend en tiempo real, sin esperar a que se complete la respuesta completa.
-            alumno_id=current_user["alumno_id"],), media_type="text/event-stream", headers={"Cache-Control": "no-cache","Connection": "keep-alive","X-Accel-Buffering": "no"})
+            alumno_id=current_user["alumno_id"],
+        ),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
 
-@app.get("/api/interacciones")
+@app.get(
+    "/api/interacciones",
+    summary="Historial de interacciones",
+    description="Devuelve el historial completo de conversaciones del alumno autenticado.",
+    response_model=InteraccionesResponse,
+    tags=["chat"],
+    responses={
+        401: {"description": "No autenticado"},
+        500: {"description": "Error interno al obtener el historial"},
+    }
+)
 def obtener_interacciones(current_user: dict = Depends(get_current_user)):
-    """Devuelve el historial de interacciones del alumno actual."""
     try:
         interacciones = get_interacciones(current_user["alumno_id"])
         return {"interacciones": [
