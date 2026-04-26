@@ -92,9 +92,9 @@ async def lifespan(app: FastAPI):
         create_tables()
 
     # Indexar documentos de todas las asignaturas en sus colecciones de Qdrant al arrancar
-    for carpeta in DATA_ROOT.iterdir():
-       if carpeta.is_dir():
-           load_documents_from_folder(carpeta, DATA_ROOT, collection_name=carpeta.name)
+    #for carpeta in DATA_ROOT.iterdir():
+     #  if carpeta.is_dir():
+      #     load_documents_from_folder(carpeta, DATA_ROOT, collection_name=carpeta.name)
     
     print (_("INITIALIZE THREADS"))
     #Ahora inicializamos los hilos observadores 
@@ -361,6 +361,8 @@ def obtener_interacciones(current_user: dict = Depends(get_current_user)):
 _reset_tokens: dict[str, tuple[str, datetime]] = {}
 
 def _send_reset_email(recipient: str, reset_url: str):
+    
+    
     msg = MIMEText(
         f"Hola,\n\n"
         f"Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en Codi.\n\n"

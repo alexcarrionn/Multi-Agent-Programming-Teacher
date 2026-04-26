@@ -2,6 +2,7 @@ import { Poppins} from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sileo";
 import { AuthProvider } from "./context/AuthContext";
+import I18nProvider from "./components/providers/I18Provider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -21,9 +22,11 @@ export default function RootLayout({ children }) {
       className={`${poppins.variable} h-full antialiased`}>
         
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </I18nProvider>
         <Toaster position="top-center" />
       </body>
     </html>

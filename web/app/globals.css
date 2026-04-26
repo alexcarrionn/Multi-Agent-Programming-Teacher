@@ -188,8 +188,9 @@
 
     .btn-header-login {
     position: relative;
-    width: 50%;
+    width: auto;
     height: 45px;
+    padding: 0 20px;
     background: transparent;
     border-radius: 40px;
     cursor: pointer;

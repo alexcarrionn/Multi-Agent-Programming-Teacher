@@ -4,9 +4,11 @@
 import { useChat } from "@/lib/hooks/useChat";
 import Header from "./components/ui/header";
 import ChatArea from "./components/chat/ChatArea";
+import { useTranslation } from "react-i18next"; // Importamos el hook de traducción
+import "@/lib/i18n"; // Asegúrate de que la configuración de i18n se importe
 
 export default function Home() {
-
+  const { t } = useTranslation(); // Hook para traducciones
   const {messages, isLoading, sendMessage, stopStreaming} = useChat();
 
   return (
@@ -31,7 +33,7 @@ export default function Home() {
       {/* Footer fijo abajo */}
       <div className="shrink-0 flex items-center justify-center bg-gray-50 px-4 py-2 relative z-10">
         <p className="text-xs text-gray-500 text-center max-w-3xl">
-          Codi es una IA de apoyo educativo y puede cometer errores. Para cualquier duda o problema, contacta con el equipo docente de la asignatura.
+          {t("home_footer")}
         </p>
       </div>
     </main>

@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/app/components/ui/button";
 import { Send, Square } from 'lucide-react';
+import "@/lib/i18n"; // Asegúrate de que la configuración de i18n se importe
+import { useTranslation } from "react-i18next"; // Hook para traducciones
 
 export default function ChatInput({ onSend, onStop, isLoading }) {
     const [message, setMessage] = useState('');
     const textareaRef = useRef(null);
+    const { t } = useTranslation(); // Hook para traducciones
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -40,7 +43,7 @@ export default function ChatInput({ onSend, onStop, isLoading }) {
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={isLoading ? "Codi está escribiendo..." : "Escribe tu mensaje..."}
+                        placeholder={isLoading ? t("chat_loading_placeholder") : t("chat_placeholder")}
                         disabled={isLoading}
                         rows={1}
                         className="flex-1 resize-none bg-transparent px-4 py-3.5 pr-14 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-[200px] disabled:opacity-60"

@@ -7,24 +7,27 @@ import axios from "axios";
 import Image from "next/image";
 import { sileo } from "sileo";
 import { MailCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import "@/lib/i18n";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [enviado, setEnviado] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const getErrorMessage = (err) => {
-    if (!err) return "Ha ocurrido un error.";
+    if (!err) return t("error_generic");
     if (typeof err === "string") return err;
     if (axios.isAxiosError(err)) {
       return (
         err.response?.data?.detail ||
         err.response?.data?.message ||
         err.message ||
-        "Error de red o del servidor."
+        t("error_network")
       );
     }
-    return "Ha ocurrido un error.";
+    return t("error_generic");
   };
 
   const handleSubmit = async (e) => {
@@ -34,10 +37,7 @@ export default function ForgotPassword() {
       await axios.post("/backend/api/forgot-password", { email });
       setEnviado(true);
     } catch (err) {
-      sileo.error({
-        title: "Error",
-        description: getErrorMessage(err),
-      });
+      sileo.error({ title: t("error"), description: getErrorMessage(err) });
     } finally {
       setLoading(false);
     }
@@ -46,36 +46,28 @@ export default function ForgotPassword() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center p-6 bg-gray-100">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
-
-        {/* Cabecera */}
         <div className="flex flex-col items-center mb-8">
           <Image src="/logo.svg" alt="Logo de Codi" width={48} height={48} priority className="mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900">Recuperar contraseña</h1>
-          <p className="text-sm text-gray-500 mt-2 text-center">
-            Introduce tu correo y te enviaremos un enlace para restablecer tu contraseña
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">{t("forgot_title")}</h1>
+          <p className="text-sm text-gray-500 mt-2 text-center">{t("forgot_subtitle")}</p>
         </div>
 
         {enviado ? (
-          /* Pantalla de confirmación */
           <div className="flex flex-col items-center gap-4 py-4">
             <MailCheck size={48} className="text-blue-500" />
-            <p className="text-gray-700 text-center font-medium">
-              Enlace enviado
-            </p>
+            <p className="text-gray-700 text-center font-medium">{t("forgot_sent_title")}</p>
             <p className="text-sm text-gray-500 text-center">
-              Si <span className="font-semibold">{email}</span> está registrado, recibirás en breve un correo con el enlace para restablecer tu contraseña. Revisa también la carpeta de spam. Se paciente el correo suele tardar de 2 a 3 minutos. 
+              {t("forgot_sent_msg", { email })}
             </p>
             <Button asChild variant="outline" className="w-full mt-4 py-2.5 rounded-lg">
-              <Link href="/auth/login">Volver al inicio de sesión</Link>
+              <Link href="/auth/login">{t("back_to_login")}</Link>
             </Button>
           </div>
         ) : (
-          /* Formulario */
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700" htmlFor="email">
-                Correo electrónico *
+                {t("forgot_email")}
               </label>
               <input
                 id="email"
@@ -95,11 +87,10 @@ export default function ForgotPassword() {
                 disabled={loading}
                 className="btn-codi-animated mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? "Enviando..." : "Enviar enlace"}
+                {loading ? t("forgot_sending") : t("forgot_submit")}
               </button>
-
               <Button asChild variant="outline" type="button" className="w-full py-2.5 rounded-lg">
-                <Link href="/auth/login">Volver al inicio de sesión</Link>
+                <Link href="/auth/login">{t("back_to_login")}</Link>
               </Button>
             </div>
           </form>
