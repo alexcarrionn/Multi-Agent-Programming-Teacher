@@ -64,7 +64,7 @@ export default function ForgotPassword() {
               Enlace enviado
             </p>
             <p className="text-sm text-gray-500 text-center">
-              Si <span className="font-semibold">{email}</span> está registrado, recibirás en breve un correo con el enlace para restablecer tu contraseña. Revisa también la carpeta de spam.
+              Si <span className="font-semibold">{email}</span> está registrado, recibirás en breve un correo con el enlace para restablecer tu contraseña. Revisa también la carpeta de spam. Se paciente el correo suele tardar de 2 a 3 minutos. 
             </p>
             <Button asChild variant="outline" className="w-full mt-4 py-2.5 rounded-lg">
               <Link href="/auth/login">Volver al inicio de sesión</Link>

@@ -40,6 +40,9 @@ class AgentState(TypedDict):
     nuevo_nivel: Optional[str]
     justificacion_cambio_nivel: Optional[str]
 
+    #asignatura que el usuario está cursando
+    asignatura: Optional[str]
+
 
 
 

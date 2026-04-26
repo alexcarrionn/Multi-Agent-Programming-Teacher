@@ -7,8 +7,8 @@ from rag.embeddings import get_embeddings
 from config.settings import settings
 
 # Función para indexar documentos utilizando el modelo BAAI/bge-m3 y almacenarlos en QDrant Cloud
-def index_documents(text: str, source_id: str = "default", content_hash: str | None = None, replace_existing_source: bool = True, file_path: str = ""):
-    # Obtener las embeddings utilizando el modelo BAAI/bge-m3
+def index_documents(text: str, source_id: str = "default", content_hash: str | None = None, replace_existing_source: bool = True, file_path: str = "", collection_name: str = None):
+    collection = collection_name or settings.QDRANT_COLLECTION
     embeddings_open_source = get_embeddings()
 
     # Configura el SemanticChuncker con el nuevo modelo
@@ -34,13 +34,13 @@ def index_documents(text: str, source_id: str = "default", content_hash: str | N
         chunk.metadata["file_path"] = str(file_path)
 
     #vamos a comprobar si la coleccion existe
-    collection_exists = client.collection_exists(settings.QDRANT_COLLECTION)
+    collection_exists = client.collection_exists(collection)
 
     # Aseguramos que el índice de payload exista antes de cualquier operación de filtrado
     if collection_exists:
         try:
             client.create_payload_index(
-                collection_name=settings.QDRANT_COLLECTION,
+                collection_name=collection,
                 field_name="metadata.source_id",
                 field_schema=PayloadSchemaType.KEYWORD,
             )
@@ -49,7 +49,7 @@ def index_documents(text: str, source_id: str = "default", content_hash: str | N
 
         try:
             client.create_payload_index(
-                collection_name=settings.QDRANT_COLLECTION,
+                collection_name=collection,
                 field_name="metadata.content_hash",
                 field_schema=PayloadSchemaType.KEYWORD,
             )
@@ -59,7 +59,7 @@ def index_documents(text: str, source_id: str = "default", content_hash: str | N
     #si la coleccion existe y tenemos que reemplazarla, eliminamos los puntos que correspondan a la fuente que estamos indexando
     if collection_exists and replace_existing_source:
         client.delete(
-            collection_name=settings.QDRANT_COLLECTION,
+            collection_name=collection,
             points_selector=Filter(
                 must=[
                     FieldCondition(
@@ -78,11 +78,11 @@ def index_documents(text: str, source_id: str = "default", content_hash: str | N
             embedding=embeddings_open_source,
             url=settings.QDRANT_URL,
             api_key=settings.QDRANT_API_KEY,
-            collection_name=settings.QDRANT_COLLECTION,
+            collection_name=collection,
         )
         # Creamos un índice en el campo metadata.source_id para poder filtrar por source_id
         client.create_payload_index(
-            collection_name=settings.QDRANT_COLLECTION,
+            collection_name=collection,
             field_name="metadata.source_id",
             field_schema=PayloadSchemaType.KEYWORD,
         )
@@ -92,7 +92,7 @@ def index_documents(text: str, source_id: str = "default", content_hash: str | N
      # Si ya existe, simplemente usamos el vectorstore para añadir más
         vectorstore = QdrantVectorStore(
             client=client,
-            collection_name=settings.QDRANT_COLLECTION,
+            collection_name=collection,
             embedding=embeddings_open_source,
         )
         vectorstore.add_documents(semantic_chunks)

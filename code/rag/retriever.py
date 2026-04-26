@@ -3,7 +3,8 @@ from langchain_qdrant import QdrantVectorStore
 from rag.qDrantClient import client
 from rag.embeddings import get_embeddings
 
-def create_retriever(top_k: int = 5):
+#le hemos añadido el collection_name para poder crear diferentes colecciones en QDRant cloud para las diferentes asignaturas.
+def create_retriever(top_k: int = 5, collection_name: str = None):
 
         embeddings_open_source = get_embeddings()
 
@@ -12,7 +13,7 @@ def create_retriever(top_k: int = 5):
         vectorstore = QdrantVectorStore(
             client=client,
             embedding=embeddings_open_source,
-            collection_name=settings.QDRANT_COLLECTION
+            collection_name= collection_name or settings.QDRANT_COLLECTION
         )
         # creamos el retriever
         return vectorstore.as_retriever(search_kwargs={"k": top_k})

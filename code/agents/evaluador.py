@@ -46,7 +46,8 @@ class EvaluadorAgent:
             #coge el codigo del alumno del estado, si no esta definido se asume que no hay codigo disponible
             "codigo_alumno": state.get("codigo_alumno", "No disponible"), 
             #coge el contexto adicional del estado, si no esta definido se asume que no hay contexto adicional relevante
-            "contexto": state.get("contexto", "No disponible")
+            "contexto": state.get("contexto", "No disponible"),
+            "asignatura": state.get("asignatura", "Introduccion_programacion"),
         })
         #Extraemos los metadatos de cambio de nivel con regex para mayor robustez, en esta parte lo que se va a hacer es 
         #Extraer la informacion que no queremos del mensaje y poder saber si el agente ha decidido cambiar el nivel del alumno

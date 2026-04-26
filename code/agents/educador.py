@@ -26,7 +26,8 @@ class EducadorAgent:
             #coge el nivel del usuario del estado, si no esta definido se asume que es principiante
             "user_level": state.get("user_level", "principiante"),
             #coge el contexto del estado, si no esta definido se asume que no hay contexto relevante
-            "contexto": state.get("contexto", "No disponible")
+            "contexto": state.get("contexto", "No disponible"),
+            "asignatura": state.get("asignatura", "Introduccion_programacion"),
         })
         #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las explicaciones que el agente considere relevantes para el usuario.
         return {

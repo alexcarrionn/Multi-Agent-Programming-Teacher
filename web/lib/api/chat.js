@@ -4,12 +4,12 @@ El formato de los eventos del backend es :
  *   data: [DONE]\n\n
  */
 
-export async function sendChatMessage(message, signal) {
+export async function sendChatMessage(message, asignatura, signal) {
     const response = await fetch("/backend/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, asignatura }),
         signal,
     });
 

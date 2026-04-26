@@ -32,7 +32,8 @@ class DemostradorAgent:
             #coge el concepto a ilustrar del estado, si no esta definido se asume que no hay un concepto específico
             "concepto": state.get("concepto", "No disponible"),
             #coge el contexto del estado, si no esta definido se asume que no hay contexto relevante
-            "contexto": state.get("contexto", "No disponible")
+            "contexto": state.get("contexto", "No disponible"),
+            "asignatura": state.get("asignatura", "Introduccion_programacion"),
         })
         #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las demostraciones. 
         return {

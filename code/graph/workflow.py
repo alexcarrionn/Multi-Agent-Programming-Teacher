@@ -71,9 +71,8 @@ def nodo_guardar_progreso(state):
 
 def rag_node(state):
     """Nodo que se encarga de gestionar el proceso de RAG para obtener información relevante antes de pasar al agente correspondiente."""
-   # Para implementar el nodo RAG empezamos creando el retriver 
-    retriever = create_retriever()
-
+    asignatura = state.get("asignatura")
+    retriever = create_retriever(collection_name=asignatura)
     #Ahora obtenemos el contexto relevante para la consulta del usuario utilizando el retriever
     concepto = state.get("concepto", "")
     enunciado = state.get("enunciado", "")
@@ -184,7 +183,7 @@ def _build_graph():
 graph = _build_graph()
 
 # Funcion para ejecutar el workflow y mostrar las actualizaciones en tiempo real
-def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int):
+def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int, asignatura: str = None):
     config = {"configurable": {"thread_id": thread_id}}
 
     checkpoint = graph.get_state(config)
@@ -197,7 +196,7 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
 
     try:
         events = graph.stream(
-            {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": ""},
+            {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": "", "asignatura": asignatura},
             config,
             stream_mode="values",
         )
@@ -243,7 +242,8 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
                 alumno_id=alumno_id,
                 mensaje_usuario=user_input,
                 respuesta_agente="\n\n".join(respuesta_completa),
-                tipo_interaccion=ultimo_agente
+                tipo_interaccion=ultimo_agente,
+                asignatura=asignatura
             )
 
 def _detect_agent(event: dict, prev: dict) -> str:

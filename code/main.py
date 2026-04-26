@@ -25,9 +25,8 @@ from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
 
-ASIGNATURA = "Introduccion_programacion"
 CARPETA_DOCUMENTOS = "data"
-DATA_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / ASIGNATURA
+DATA_ROOT = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
 DATA_AUTORITHED_USER_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / "alumnos_autorizados.xlsx"
 
 
@@ -52,26 +51,29 @@ def observar_cambios_archivos():
 #cada vez que añadamos o modifiquemos un nuevo documento. 
 
 def observar_cambios_documentacion():
+    data_root = DATA_ROOT
     #tenemos que hacerlo de forma recursiva para observar los cambios en las subcarpetas de DATA_PATH
-    for changes in watch(DATA_PATH):
+    for changes in watch(data_root):
         for change_type, path in changes:
 
             file_path = Path(path).resolve()
-            
             #Evitamos que sean ficheros que no sean aceptados por la funcion de carga de documentos.
             if file_path.suffix.lower() not in SUPPORTED_FORMATS:
                 continue
-
+            try : 
+                collection = file_path.parent.relative_to(data_root).parts[0]
+            except ValueError:
+                continue
             if change_type == Change.added:
                 if not file_path.is_file():
                     continue  # Ignorar cambios en directorios
-                indexar_documentos(file_path, DATA_PATH.parent)
+                indexar_documentos(file_path, data_root, collection)
             elif change_type == Change.modified:
                 if not file_path.is_file():
                     continue  # Ignorar cambios en directorios
-                actualizar_documentacion(file_path, DATA_PATH.parent)
+                actualizar_documentacion(file_path, data_root, collection)
             elif change_type == Change.deleted:
-                eliminar_documentacion(file_path, DATA_PATH.parent)
+                eliminar_documentacion(file_path, data_root, collection_name=collection)
 
 
 
@@ -89,9 +91,10 @@ async def lifespan(app: FastAPI):
     if not tablas_existen():
         create_tables()
 
-    #data_root = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
-    #para poder cambiar de asignatura solo hay que cambiar el nombre de la carpeta, siempre y cuando se mantenga la estructura de carpetas dentro de data
-    #load_documents_from_folder(data_root / ASIGNATURA, data_root)
+    # Indexar documentos de todas las asignaturas en sus colecciones de Qdrant al arrancar
+    for carpeta in DATA_ROOT.iterdir():
+       if carpeta.is_dir():
+           load_documents_from_folder(carpeta, DATA_ROOT, collection_name=carpeta.name)
     
     print (_("INITIALIZE THREADS"))
     #Ahora inicializamos los hilos observadores 
@@ -151,6 +154,7 @@ class PasswordUpdateRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    asignatura: str = "Introduccion_programacion"  # Valor por defecto, se puede cambiar desde el frontend
 
 class ForgotPasswordRequest(BaseModel):
     email: str
@@ -178,6 +182,9 @@ class InteraccionItem(BaseModel):
 
 class InteraccionesResponse(BaseModel):
     interacciones: list[InteraccionItem]
+
+class AsignaturasResponse(BaseModel):
+    asignaturas: list[str]
 
 # --- Endpoints de autenticación ---
 
@@ -318,6 +325,7 @@ def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_u
             thread_id=thread_id,
             user_level=current_user["nivel"],
             alumno_id=current_user["alumno_id"],
+            asignatura=datos.asignatura
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
@@ -421,4 +429,17 @@ def reset_password(datos: ResetPasswordRequest):
         del _reset_tokens[datos.token]
         return {"message": _("PASSWORD RESET SUCCESS")}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=_("PASSWORD RESET ERROR") + f": {str(e)}")
+        raise HTTPException(status_code=500, detail=_("PASSWORD RESET ERROR") + f": {str(e)}") 
+    
+#funcion para poder obtener las asignaturas
+@app.get(
+    "/api/asignaturas",
+    summary="Obtener asignaturas",
+    description="Devuelve la lista de asignaturas disponibles.",
+    response_model=AsignaturasResponse,
+    tags=["chat"],
+)
+def listar_asignaturas():
+    data_root = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
+    carpetas = [d.name for d in data_root.iterdir() if d.is_dir()]
+    return {"asignaturas": carpetas}

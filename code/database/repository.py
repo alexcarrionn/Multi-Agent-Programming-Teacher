@@ -287,7 +287,7 @@ def eliminar_cuenta_alumno(alumno_id: int):
     finally:
         session.close()
 
-def guardar_interaccion(alumno_id: int, mensaje_usuario: str, respuesta_agente: str, tipo_interaccion: str):
+def guardar_interaccion(alumno_id: int, mensaje_usuario: str, respuesta_agente: str, tipo_interaccion: str, asignatura: str):
     session = SessionLocal()
     try:
         interaccion = Interaccion(
@@ -295,7 +295,8 @@ def guardar_interaccion(alumno_id: int, mensaje_usuario: str, respuesta_agente: 
             mensaje_usuario=mensaje_usuario,
             respuesta_agente=respuesta_agente,
             tipo_interaccion=tipo_interaccion,
-            fecha_interaccion=datetime.now()
+            fecha_interaccion=datetime.now(),
+            asignatura=asignatura
         )
         session.add(interaccion)
         session.commit()

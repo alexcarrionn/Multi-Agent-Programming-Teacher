@@ -121,17 +121,25 @@ def detect_language(text: str) -> str:
 
 
 #Funcion que cumprueba que se ha indexado con anterioridad un documento con el mismo source id. 
-def get_indexed_content_hash(source_id: str) -> str | None:
+def get_indexed_content_hash(source_id: str, collection_name: str = None) -> str | None:
     """Recupera el content_hash guardado en Qdrant para un source_id concreto."""
+    collection = collection_name or settings.QDRANT_COLLECTION
 
-    #Si la coleccion no existe, no hay nada indexado
-    if not client.collection_exists(settings.QDRANT_COLLECTION):
+    if not client.collection_exists(collection):
         return None
 
-    #Buscamos si existe algun documento con el mismo source_id en la coleccion, 
-    #para ello hacemos una consulta en la base de datos de QDrant
+    # Garantizamos que el índice exista antes de filtrar
+    try:
+        client.create_payload_index(
+            collection_name=collection,
+            field_name="metadata.source_id",
+            field_schema=models.PayloadSchemaType.KEYWORD,
+        )
+    except Exception:
+        pass  # El índice ya existe
+
     results, _ = client.scroll(
-        collection_name=settings.QDRANT_COLLECTION,
+        collection_name=collection,
         scroll_filter=models.Filter(
             must=[
                 models.FieldCondition(
@@ -174,26 +182,23 @@ def has_alternative_file_for_source(file_path: Path) -> bool:
     return False
 
 #Definimos una funcon para comprobar que una colecion ya existe en QDrant
-def is_content_hash_indexed(content_hash: str) -> bool:
-    """Comprueba que el content_hash ya existe en cualquiera de los documentos indexados en Qdrant. 
+def is_content_hash_indexed(content_hash: str, collection_name: str = None) -> bool:
+    """Comprueba que el content_hash ya existe en cualquiera de los documentos indexados en Qdrant.
     Gracias a esto podemos evitar indexar documentos duplicados globales aunque tengan un source_id diferente."""
-    #Si la coleccion no existe, no hay nada indexado
-    if not client.collection_exists(settings.QDRANT_COLLECTION):
+    collection = collection_name or settings.QDRANT_COLLECTION
+
+    if not client.collection_exists(collection):
         return None
     try:
         client.create_payload_index(
-            collection_name=settings.QDRANT_COLLECTION,
+            collection_name=collection,
             field_name="metadata.content_hash",
             field_schema=models.PayloadSchemaType.KEYWORD,
         )
     except Exception:
-        # Si el índice ya existe (que será lo normal después de la primera vez), 
-        # lanzará una excepción que simplemente ignoramos.
         pass
-    #Buscamos si existe algun documento con el mismo content_hash en la coleccion, 
-    #para ello hacemos una consulta en la base de datos de QDrant
     results, _ = client.scroll(
-        collection_name=settings.QDRANT_COLLECTION,
+        collection_name=collection,
         scroll_filter=models.Filter(
             must=[
                 models.FieldCondition(
@@ -210,8 +215,9 @@ def is_content_hash_indexed(content_hash: str) -> bool:
 
 
 #Hacemos una funcion para cargar un unico documento
-def load_document(file_path: Path, data_root: Path, replace_existing_source: bool = True) -> bool: 
+def load_document(file_path: Path, data_root: Path, replace_existing_source: bool = True, collection_name: str = None) -> bool:
     """Funcion que se encarga de carga un único documento, extraer su texto e indexarlo en QDrant."""
+    collection = collection_name or settings.QDRANT_COLLECTION
     extension = file_path.suffix.lower()
 
     #Comprobamos que el formato del documento es soportado
@@ -226,7 +232,7 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
     if not texto or not texto.strip():
         console.print(f"[yellow]El documento {file_path.name} está vacío o no se pudo extraer texto.[/yellow]")
         return False
-    
+
     # Comprobamos el idioma del texto para saber si se utiliza o no
     idioma = detect_language(texto)
     if idioma and idioma != EXPECTED_LANGUAGE:
@@ -238,7 +244,7 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
     #Creamos el source_id (estable por ruta) y el hash de contenido para detectar cambios
     source_id = create_source_id(file_path, data_root)
     content_hash = create_hash(texto)
-    indexed_hash = get_indexed_content_hash(source_id)
+    indexed_hash = get_indexed_content_hash(source_id, collection)
 
     #Si el hash es igual, no ha cambiado el documento
     if indexed_hash == content_hash:
@@ -248,10 +254,10 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
     #Si existe pero el hash difiere, eliminamos la versión anterior antes de reindexar
     if indexed_hash is not None and indexed_hash != content_hash:
         console.print(f"[yellow]Cambios detectados en {file_path.name}. Reindexando...[/yellow]")
-        eliminar_documentacion(file_path, data_root, expected_content_hash=indexed_hash)
+        eliminar_documentacion(file_path, data_root, expected_content_hash=indexed_hash, collection_name=collection)
 
     #En una ruta nueva, pero el contenido es idéntico a otro archivo (Evitar duplicados)
-    elif indexed_hash is None and is_content_hash_indexed(content_hash):
+    elif indexed_hash is None and is_content_hash_indexed(content_hash, collection):
         console.print(f"[cyan]El contenido de {file_path.name} ya existe en la base de datos bajo otro nombre. Se omite para evitar duplicados.[/cyan]")
         return True
 
@@ -262,12 +268,13 @@ def load_document(file_path: Path, data_root: Path, replace_existing_source: boo
         content_hash=content_hash,
         replace_existing_source=replace_existing_source,
         file_path=file_path,
+        collection_name=collection,
     )
     console.print(f"[green]Documento indexado correctamente: {file_path.name} (source_id: {source_id})[/green]")
     return True
 
 #Hacemos una funcion para cargar todos los documentos de la carpeta data/ y la subcarpeta elegida en el Rag correspondiente
-def load_documents_from_folder(folder_path: Path, data_root: Path, replace_existing_source: bool = True) -> None:
+def load_documents_from_folder(folder_path: Path, data_root: Path, replace_existing_source: bool = True, collection_name: str = None) -> None:
     """Carga todos los documentos soportados de una carpeta (recursivamente) y los indexa en QDrant."""
     if not folder_path.exists() or not folder_path.is_dir():
         console.print(f"[bold red]La carpeta {folder_path} no existe o no es un directorio.[/bold red]")
@@ -285,7 +292,7 @@ def load_documents_from_folder(folder_path: Path, data_root: Path, replace_exist
     exitos = 0
     fallos = 0
     for archivo in archivos:
-        resultado = load_document(archivo, data_root, replace_existing_source)
+        resultado = load_document(archivo, data_root, replace_existing_source, collection_name=collection_name)
         if resultado:
             exitos += 1
         else:
@@ -294,20 +301,20 @@ def load_documents_from_folder(folder_path: Path, data_root: Path, replace_exist
     console.print(f"[bold green]Carga finalizada: {exitos} documentos indexados, {fallos} fallidos.[/bold green]")
 
 #Definimos una funcion para actualizar la documentacion 
-def actualizar_documentacion(file_path: Path, data_root: Path) -> None:
+def actualizar_documentacion(file_path: Path, data_root: Path, collection_name: str = None) -> None:
     # Se delega en load_document para que compare hashes y solo reindexe cuando cambie contenido.
     console.print(f"[blue]Documento modificado: {file_path}, verificando cambios...[/blue]")
-    load_document(file_path, data_root, True)
+    load_document(file_path, data_root, True, collection_name=collection_name)
 
 #Definimos una funcion para añadir nueva documentacion
-def indexar_documentos(file_path: Path, data_root: Path) -> None:
+def indexar_documentos(file_path: Path, data_root: Path, collection_name: str = None) -> None:
     #primero comprobamos que el documento exista
     console.print(f"[blue]Nuevo documento encontrado en {file_path}...[/blue]")
     #indexamos el nuevo documento en la base de datos de vectores de QDrant
-    load_document(file_path, data_root, True)
+    load_document(file_path, data_root, True, collection_name=collection_name)
 
 #Definimos una funcion para eliminar documentacion
-def eliminar_documentacion(file_path: Path, data_root: Path, expected_content_hash: str | None = None) -> None:
+def eliminar_documentacion(file_path: Path, data_root: Path, expected_content_hash: str | None = None, collection_name: str = None) -> None:
     """Elimina documentación de Qdrant con protección frente a borrados cruzados.
 
     - Siempre filtra por source_id.
@@ -316,31 +323,23 @@ def eliminar_documentacion(file_path: Path, data_root: Path, expected_content_ha
       y distinto formato, no borra porque ese source_id sigue vigente.
     """
 
-    #creamos el source_id a partir de la ruta del documento
+    collection = collection_name or settings.QDRANT_COLLECTION
     source_id = create_source_id(file_path, data_root)
-    
+
     if expected_content_hash is None:
-        expected_content_hash = get_indexed_content_hash(source_id)
-    # Si se elimina una variante pero existe otra con mismo source_id, no borrar en Qdrant.
+        expected_content_hash = get_indexed_content_hash(source_id, collection)
     if not file_path.exists() and has_alternative_file_for_source(file_path):
         console.print(
             f"[cyan]Se detectó otra variante activa para {source_id}; se omite el borrado de Qdrant.[/cyan]"
         )
         return
-    #primero comprobamos que el documento exista en la bbdd, para ello hacemos una consulta a la base de datos de QDrant con el source_id del documento
-    #Luego comprobamos que el hash del documento es del que queremos eliminar
-    # Evita mensajes de borrado engañosos si no hay nada que eliminar con el filtro actual.
+
     results, _ = client.scroll(
-        collection_name=settings.QDRANT_COLLECTION,
+        collection_name=collection,
         scroll_filter=models.Filter(
-            must=[ models.FieldCondition(
-                    key="metadata.content_hash",
-                    match=models.MatchValue(value=expected_content_hash)),
-                
-                    models.FieldCondition(
-                        key="metadata.source_id",
-                         match=models.MatchValue(value=source_id),
-                 )
+            must=[
+                models.FieldCondition(key="metadata.content_hash", match=models.MatchValue(value=expected_content_hash)),
+                models.FieldCondition(key="metadata.source_id", match=models.MatchValue(value=source_id)),
             ]
         ),
         limit=1,
@@ -351,15 +350,10 @@ def eliminar_documentacion(file_path: Path, data_root: Path, expected_content_ha
         return
 
     client.delete(
-        collection_name=settings.QDRANT_COLLECTION,
-        points_selector=models.Filter(must=[ models.FieldCondition(
-                    key="metadata.content_hash",
-                    match=models.MatchValue(value=expected_content_hash)),
-                
-                    models.FieldCondition(
-                        key="metadata.source_id",
-                         match=models.MatchValue(value=source_id),
-                 )
-            ]),
+        collection_name=collection,
+        points_selector=models.Filter(must=[
+            models.FieldCondition(key="metadata.content_hash", match=models.MatchValue(value=expected_content_hash)),
+            models.FieldCondition(key="metadata.source_id", match=models.MatchValue(value=source_id)),
+        ]),
     )
     console.print(f"[yellow]Documento eliminado: {file_path}[/yellow]")

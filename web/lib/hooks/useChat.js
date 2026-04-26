@@ -4,12 +4,14 @@
 import { useRouter } from "next/navigation";
 import { sendChatMessage as sendMessageApi } from "@/lib/api/chat";
 import { useRef, useCallback, useState } from "react";
+import { useAuth } from "@/app/context/AuthContext";
 
 export function useChat() {
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const abortControllerRef = useRef(null);
     const router = useRouter();
+    const {user} = useAuth();
 
     const sendMessage = useCallback(async (message) => {
         if (!message.trim() || isLoading) return; // No enviar mensajes vacíos o mientras se está cargando
@@ -27,7 +29,7 @@ export function useChat() {
         abortControllerRef.current = new AbortController();
 
         try {
-            const stream = await sendMessageApi(message, abortControllerRef.current.signal);
+            const stream = await sendMessageApi(message, user?.asignatura ?? "Introduccion_programacion", abortControllerRef.current.signal);
             if (!stream) throw new Error("EMPTY_STREAM");
             const reader = stream.getReader();
             const decoder = new TextDecoder();
@@ -126,7 +128,7 @@ export function useChat() {
             setIsLoading(false);
             abortControllerRef.current = null;
         }
-    }, [isLoading, router]);
+    }, [isLoading, router, user]);
 
     const stopStreaming = useCallback(() => {
         abortControllerRef.current?.abort();

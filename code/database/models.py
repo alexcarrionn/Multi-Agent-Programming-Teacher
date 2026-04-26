@@ -73,6 +73,7 @@ class Interaccion(Base):
     respuesta_agente = Column(longText, nullable=True)
     fecha_interaccion = Column(DateTime, nullable=True)
     tipo_interaccion = Column(String(50), nullable=True)  # Por ejemplo: "consulta", "retroalimentación", etc.
+    asignatura = Column(String(100), nullable=True)  # Para identificar a qué asignatura se refiere la interacción
 
     alumno = relationship("Alumno", back_populates="interacciones")
 

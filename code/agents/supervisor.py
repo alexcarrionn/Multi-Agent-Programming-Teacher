@@ -74,11 +74,11 @@ def _ultimo_mensaje_usuario(state) -> str:
             return mensaje[1]
     return ""
 
-def _ckeck_mensaje_ambito(query: str) -> bool:
+def _ckeck_mensaje_ambito(query: str, asignatura: str = None) -> bool:
     if not query.strip():
         return False
     try:
-        retriver = create_retriever(top_k=MIN_DOCS_RELEVANTES)
+        retriver = create_retriever(top_k=MIN_DOCS_RELEVANTES, collection_name=asignatura)
         docs = retriver.invoke(query)
         return len(docs) >= MIN_DOCS_RELEVANTES
     except Exception:
@@ -149,9 +149,11 @@ def _fallback_routing(user_message: str) -> dict:
 
 #Funcion principal del supervisor, se encarga de recibir el estado actual y construir una respuesta utilizando el prompt y el llm
 def nodo_supervisor(state):
+    asignatura = state.get("asignatura", "Introduccion_programacion")
     chain = prompt_supervisor | llm
     response = chain.invoke({
         "mensajes": state["mensajes"][-6:],
+        "asignatura": asignatura,
     })
 
     raw_content = response.content or ""
@@ -176,10 +178,10 @@ def nodo_supervisor(state):
     #Si el supervisor decide delegar a un agente, comprobamos que la pregunta este en el contexto 
     if next_agent in AGENTES_EDUCATIVOS:
         query = data.get("enunciado") or data.get("codigo_alumno") or _ultimo_mensaje_usuario(state)
-        if not _ckeck_mensaje_ambito(query):
+        if not _ckeck_mensaje_ambito(query, asignatura):
             respuestas_fuera_ambito = {
-                "es": "Lo siento, no tengo información sobre ese tema en el material de la asignatura. Solo puedo ayudarte con los contenidos de Introducción a la Programación. ¿Tienes alguna duda sobre los temas de la asignatura?",
-                "en": "Sorry, I don't have information about that topic in the course material. I can only help you with the contents of Introduction to Programming. Do you have any questions about the course topics?",
+                "es": f"Lo siento, no tengo información sobre ese tema en el material de la asignatura. Solo puedo ayudarte con los contenidos de {asignatura.replace('_', ' ')}. ¿Tienes alguna duda sobre los temas de la asignatura?",
+                "en": f"Sorry, I don't have information about that topic in the course material. I can only help you with the contents of {asignatura.replace('_', ' ')}. Do you have any questions about the course topics?",
             }
             return {
                 "next": "FINISH",
