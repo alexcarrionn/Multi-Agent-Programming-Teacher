@@ -121,3 +121,60 @@ msgstr "Error al restablecer la contraseña. Inténtalo de nuevo."
 
 msgid "ERROR SAVING TEACHERS"
 msgstr "Error al guardar al docente en la base de datos."
+
+msgid "LOGIN SUCCESS"
+msgstr "Sesión iniciada correctamente."
+
+msgid "ERROR UPDATING PASSWORD"
+msgstr "Error al actualizar la contraseña."
+
+msgid "ERROR DELETING ACCOUNT"
+msgstr "Error al eliminar la cuenta."
+
+msgid "ACCOUNT DELETION SUCCESS"
+msgstr "Cuenta eliminada correctamente."
+
+msgid "ACCOUNT DELETION ERROR"
+msgstr "Error al eliminar la cuenta. Inténtalo de nuevo."
+
+msgid "ASIGNATURA ALREADY EXISTS"
+msgstr "Ya existe una asignatura con ese código."
+
+msgid "ASIGNATURA NOT FOUND"
+msgstr "No se ha encontrado la asignatura."
+
+msgid "ALUMNO ALREADY ENROLLED"
+msgstr "El alumno ya está matriculado en esta asignatura."
+
+msgid "ERROR ENROLLING STUDENT"
+msgstr "Error al matricular al alumno en la asignatura."
+
+msgid "ALUMNO ALREADY AUTHORIZED"
+msgstr "Este correo ya está autorizado en esta asignatura."
+
+msgid "ALUMNO AUTHORIZED NOT FOUND"
+msgstr "No se ha encontrado la autorización del alumno."
+
+msgid "ANOTHER STUDENT ALREADY AUTHORIZED WITH THIS EMAIL"
+msgstr "Otro alumno ya está autorizado con este correo en esta asignatura."
+
+msgid "ACCESS TO ASSIGNMENT DENIED"
+msgstr "No tienes permiso para acceder a esta asignatura."
+
+msgid "ACCESS TO STUDENT PROGRESS DENIED"
+msgstr "No tienes permiso para ver el progreso de este alumno."
+
+msgid "ACCESS TO STUDENT INTERACTIONS DENIED"
+msgstr "No tienes permiso para ver las interacciones de este alumno."
+
+msgid "STUDENT ENROLLED SUCCESSFULLY"
+msgstr "Alumno matriculado correctamente."
+
+msgid "INVALID FILE FORMAT, EXPECTED EXCEL"
+msgstr "Formato de archivo inválido. Se esperaba un Excel (.xlsx o .xls)."
+
+msgid "IMPORT SUCCESS"
+msgstr "Importación completada correctamente."
+
+msgid "AUTHORIZED STUDENT DELETED"
+msgstr "Autorización del alumno eliminada correctamente."

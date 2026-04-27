@@ -122,3 +122,60 @@ msgstr "Error resetting the password. Please try again."
 
 msgid "ERROR SAVING TEACHERS"
 msgstr "Error saving docent to the database."
+
+msgid "LOGIN SUCCESS"
+msgstr "Logged in successfully."
+
+msgid "ERROR UPDATING PASSWORD"
+msgstr "Error updating the password."
+
+msgid "ERROR DELETING ACCOUNT"
+msgstr "Error deleting the account."
+
+msgid "ACCOUNT DELETION SUCCESS"
+msgstr "Account deleted successfully."
+
+msgid "ACCOUNT DELETION ERROR"
+msgstr "Error deleting the account. Please try again."
+
+msgid "ASIGNATURA ALREADY EXISTS"
+msgstr "A subject with that code already exists."
+
+msgid "ASIGNATURA NOT FOUND"
+msgstr "Subject not found."
+
+msgid "ALUMNO ALREADY ENROLLED"
+msgstr "The student is already enrolled in this subject."
+
+msgid "ERROR ENROLLING STUDENT"
+msgstr "Error enrolling the student in the subject."
+
+msgid "ALUMNO ALREADY AUTHORIZED"
+msgstr "This email is already authorized for this subject."
+
+msgid "ALUMNO AUTHORIZED NOT FOUND"
+msgstr "Authorization not found."
+
+msgid "ANOTHER STUDENT ALREADY AUTHORIZED WITH THIS EMAIL"
+msgstr "Another student is already authorized with this email in this subject."
+
+msgid "ACCESS TO ASSIGNMENT DENIED"
+msgstr "You do not have permission to access this subject."
+
+msgid "ACCESS TO STUDENT PROGRESS DENIED"
+msgstr "You do not have permission to view this student's progress."
+
+msgid "ACCESS TO STUDENT INTERACTIONS DENIED"
+msgstr "You do not have permission to view this student's interactions."
+
+msgid "STUDENT ENROLLED SUCCESSFULLY"
+msgstr "Student enrolled successfully."
+
+msgid "INVALID FILE FORMAT, EXPECTED EXCEL"
+msgstr "Invalid file format. An Excel file (.xlsx or .xls) was expected."
+
+msgid "IMPORT SUCCESS"
+msgstr "Import completed successfully."
+
+msgid "AUTHORIZED STUDENT DELETED"
+msgstr "Student authorization deleted successfully."

@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Response, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from watchfiles  import watch, Change
@@ -14,37 +14,62 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from config.settings import settings
 from email.utils import formataddr
-
+import io
+import pandas as pd
 
 # Aseguramos que la raíz del proyecto esté en sys.path para poder importar load_data
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from auth.auth import create_access_token, get_current_user
-from database.repository import actualizar_base_datos, comprobacion_email, create_tables, get_alumno_by_email, register_alumno, authenticate_alumno, tablas_existen, schema_exists, update_password, eliminar_cuenta_alumno, get_interacciones
+from auth.auth import create_access_token, get_current_user, get_current_docente
+from database.repository import (
+    crear_asignatura, 
+    get_asignaturas_por_docente, 
+    get_alumnos_por_asignatura,
+    matricular_alumno_en_asignatura,
+    get_progreso_alumno,
+    register_docente,
+    actualizar_base_datos_docentes,
+    comprobacion_email_alumno,
+    comprobacion_email_docente,
+    authenticate_docente,
+    create_tables,
+    get_alumno_by_email,
+    register_alumno,
+    authenticate_alumno,
+    tablas_existen,
+    schema_exists,
+    update_password,
+    eliminar_cuenta_alumno,
+    get_interacciones, 
+    import_alumnos_autorizados_excel,
+    get_alumnos_autorizados,
+    get_alumno_autorizado_by_id,
+    crear_alumno_autorizado,
+    actualizar_alumno_autorizado,
+    eliminar_alumno_autorizado,)
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
-from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion, load_documents_from_folder
+from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion
 
 CARPETA_DOCUMENTOS = "data"
 DATA_ROOT = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
-DATA_AUTORITHED_USER_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / "alumnos_autorizados.xlsx"
+DATA_AUTORITHED_DOCENT_PATH = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS / "docentes_autorizados.xlsx"
 
 
 #Configuramos la internacionalización para mostrar los mensajes en el idioma del usuario, en este caso español
 _= setup_i18n("es")
 
 
-"""Definimos WatchFiles para que se recargue la base de datos MySQL cada vez que se modifique el excel 
- con los alumnos autorizados, de esta forma el docente puede añadir o eliminar alumnos autorizados 
- sin necesidad de reiniciar el agente docente, simplemente modificando el excel y guardándolo, con la 
- condición de que el excel tenga la misma estructura que el original (con las columnas "Nombre", "Correo" y "DNI")."""
+"""WatchFiles vigila el Excel de docentes autorizados para sincronizar la tabla DocenteAula
+sin reiniciar el servidor. La gestion de alumnos autorizados ahora se hace por asignatura
+desde el panel del docente (BD, no fichero)."""
 
-def observar_cambios_archivos():
-    for changes in watch(DATA_AUTORITHED_USER_PATH.parent):
+def observar_cambios_docentes():
+    for changes in watch(DATA_AUTORITHED_DOCENT_PATH.parent):
         for change_type, path in changes:
             # En Windows, guardar desde Excel suele generar eventos added + modified.
-            if change_type in (Change.added, Change.modified) and Path(path).resolve()== DATA_AUTORITHED_USER_PATH:
-                actualizar_base_datos(str(DATA_AUTORITHED_USER_PATH))
+            if change_type in (Change.added, Change.modified) and Path(path).resolve()== DATA_AUTORITHED_DOCENT_PATH:
+                actualizar_base_datos_docentes(str(DATA_AUTORITHED_DOCENT_PATH))
 
 
 #Funcion para observar los cambios en la carpeta de DATA_PATH, para poder recargar los documentos en la base de datos vectorial de QDrant
@@ -93,16 +118,15 @@ async def lifespan(app: FastAPI):
 
     # Indexar documentos de todas las asignaturas en sus colecciones de Qdrant al arrancar
     #for carpeta in DATA_ROOT.iterdir():
-     #  if carpeta.is_dir():
-      #     load_documents_from_folder(carpeta, DATA_ROOT, collection_name=carpeta.name)
+    #  if carpeta.is_dir():
+    #     load_documents_from_folder(carpeta, DATA_ROOT, collection_name=carpeta.name)
     
     print (_("INITIALIZE THREADS"))
-    #Ahora inicializamos los hilos observadores 
-    hilo_observador_alumnos = threading.Thread(target=observar_cambios_archivos, daemon=True)
+    #Hilos observadores: docentes autorizados (Excel global) y documentacion del RAG.
     hilo_observador_documentacion = threading.Thread(target=observar_cambios_documentacion, daemon=True)
-    hilo_observador_alumnos.start()
     hilo_observador_documentacion.start()
-
+    hilo_observador_docentes = threading.Thread(target=observar_cambios_docentes, daemon=True)
+    hilo_observador_docentes.start()
     #Ahora el servidor le cede el control y se pone a escuchar peticiones 
     yield
 
@@ -145,7 +169,16 @@ class AlumnoCreate(BaseModel):
     password: str
     nivel: str
 
+class DocenteCreate(BaseModel):
+    nombre: str
+    email: str
+    password: str
+
 class AlumnoLogin(BaseModel):
+    email: str
+    password: str
+
+class DocenteLogin(BaseModel):
     email: str
     password: str
 
@@ -163,6 +196,23 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
+class AsignaturaCreate(BaseModel):
+      nombre: str
+      codigo: str
+
+class MatricularRequest(BaseModel):
+      alumno_email: str
+
+class AlumnoAutorizadoCreate(BaseModel):
+      nombre: str
+      correo: str
+      dni: str | None = None
+
+class AlumnoAutorizadoUpdate(BaseModel):
+      nombre: str
+      correo: str
+      dni: str | None = None
+
 # --- Modelos de response (Swagger) ---
 
 class MessageResponse(BaseModel):
@@ -173,6 +223,11 @@ class AlumnoDataResponse(BaseModel):
     nombre: str
     nivel: str
     alumno_id: int
+
+class DocenteDataResponse(BaseModel):
+    email: str
+    nombre: str
+    docente_id: int
 
 class InteraccionItem(BaseModel):
     mensaje_usuario: str
@@ -185,6 +240,49 @@ class InteraccionesResponse(BaseModel):
 
 class AsignaturasResponse(BaseModel):
     asignaturas: list[str]
+
+class AsignaturaResponse(BaseModel):
+    id: int
+    nombre: str
+    codigo: str
+
+class AsignaturasListResponse(BaseModel):
+    asignaturas: list[AsignaturaResponse]
+
+class AlumnoListItem(BaseModel):
+    id: int
+    nombre: str
+    email: str
+    nivel: str | None
+
+class AlumnosListResponse(BaseModel):
+    alumnos: list[AlumnoListItem]
+
+class ProgresoItem(BaseModel):
+    enunciado: str | None
+    codigo_alumno: str | None
+    puntuacion: str | None
+    feedback: str | None
+    ambito: str | None
+    fecha: str | None
+
+class ProgresoResponse(BaseModel):
+    progreso: list[ProgresoItem]
+
+class AlumnoAutorizadoItem(BaseModel):
+      id: int
+      asignatura_id: int
+      nombre: str
+      correo: str
+      dni: str | None
+
+class AlumnosAutorizadosListResponse(BaseModel):
+    alumnos_autorizados: list[AlumnoAutorizadoItem]
+
+class ImportResultResponse(BaseModel):
+    insertados: int
+    actualizados: int
+    message: str
 
 # --- Endpoints de autenticación ---
 
@@ -202,10 +300,34 @@ class AsignaturasResponse(BaseModel):
 async def registrar_alumno(datos: AlumnoCreate):
     if not datos.email.endswith("@um.es"):
        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
-    if not comprobacion_email(datos.email):
+    if not comprobacion_email_alumno(datos.email):
         raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT AUTHORIZED"))
     try:
         register_alumno(email=datos.email, plain_password=datos.password, nombre=datos.nombre, nivel=datos.nivel)
+        return {"message": _("REGISTRATION SUCCESS")}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_("REGISTRATION ERROR") + f": {str(e)}")
+
+@app.post(
+    "/api/docente/register",
+    summary="Registrar docente",
+    description="Registra un nuevo docente. El email debe ser @um.es y estar en la lista de docentes autorizados.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        400: {"description": "Email no válido, no autorizado o docente ya existente"},
+        500: {"description": "Error interno al registrar"},
+    }
+)
+async def registrar_docente(datos: DocenteCreate):
+    if not datos.email.endswith("@um.es"):
+        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
+    if not comprobacion_email_docente(datos.email):
+        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT AUTHORIZED"))
+    try:
+        register_docente(email=datos.email, plain_password=datos.password, nombre=datos.nombre)
         return {"message": _("REGISTRATION SUCCESS")}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -231,6 +353,7 @@ def login_alumno(datos: AlumnoLogin, response: Response):
         "nombre": alumno.nombre,
         "nivel": alumno.nivel,
         "alumno_id": alumno.id,
+        "rol": "alumno"
     })
     response.set_cookie(key="access_token",
                         value=token,
@@ -240,6 +363,37 @@ def login_alumno(datos: AlumnoLogin, response: Response):
                         max_age=3600)
     return {"message": _("LOGIN SUCCESS")}
 
+
+@app.post(
+    "/api/docente/login",
+    summary="Iniciar sesión docente",
+    description="Autentica al docente y establece una cookie JWT HttpOnly para mantener la sesión.",
+    response_model=MessageResponse,
+    tags=["auth"],
+    responses={
+        401: {"description": "Credenciales inválidas"},
+    }
+)
+def login_docente(datos: DocenteLogin, response: Response):
+    docente = authenticate_docente(datos.email, datos.password)
+    if not docente:
+        raise HTTPException(status_code=401, detail=_("ERROR INVALID CREDENTIALS"))
+    token = create_access_token({
+        "sub": docente.email,
+        "nombre": docente.nombre,
+        "docente_id": docente.id,
+        "rol": "docente"
+    })
+    response.set_cookie(key="access_token",
+                        value=token,
+                        httponly=True,
+                        secure=False,
+                        samesite="lax",
+                        max_age=3600)
+    return {"message": _("LOGIN SUCCESS")}
+
+#Endpoint para obtener los datos del alumno autenticado a partir de su cookie JWT, 
+# esta información se va a mostrar en el frontend para personalizar la experiencia del usuario.
 @app.get(
     "/api/me",
     summary="Obtener datos del alumno",
@@ -252,7 +406,18 @@ def login_alumno(datos: AlumnoLogin, response: Response):
 )
 def obtener_datos_alumno_actual(current_user: dict = Depends(get_current_user)):
     return {"email": current_user["sub"], "nombre": current_user["nombre"], "nivel": current_user["nivel"], "alumno_id": current_user["alumno_id"]}
-
+@app.get(
+    "/api/docente/me",
+    summary="Obtener datos del docente",
+    description="Devuelve el perfil del docente autenticado a partir de su cookie JWT.",
+    response_model=DocenteDataResponse,
+    tags=["auth"],
+    responses={
+        401: {"description": "No autenticado o token inválido"},
+    }
+)
+def obtener_datos_docente_actual(current_user: dict = Depends(get_current_docente)):
+    return {"email": current_user["sub"], "nombre": current_user["nombre"], "docente_id": current_user["docente_id"]}
 @app.post(
     "/api/logout",
     summary="Cerrar sesión",
@@ -263,6 +428,20 @@ def obtener_datos_alumno_actual(current_user: dict = Depends(get_current_user)):
 def logout_alumno(response: Response):
     response.delete_cookie(key="access_token")
     return {"message": _("GOODBYE MESSAGE")}
+
+#endpoint para cerrar sesion de un docente
+@app.post(
+    "/api/docente/logout",
+    summary="Cerrar sesión docente",
+    description="Elimina la cookie JWT y cierra la sesión del docente.",
+    response_model=MessageResponse,
+    tags=["auth"],
+)
+def logout_docente(response: Response):
+    response.delete_cookie(key="access_token")
+    return {"message": _("GOODBYE MESSAGE")}
+
+
 
 @app.put(
     "/api/update-password",
@@ -445,3 +624,329 @@ def listar_asignaturas():
     data_root = Path(__file__).resolve().parent / CARPETA_DOCUMENTOS
     carpetas = [d.name for d in data_root.iterdir() if d.is_dir()]
     return {"asignaturas": carpetas}
+
+#EndPoint para poder crear una asignatura 
+@app.post(
+      "/api/docente/asignaturas",
+      summary="Crear asignatura",
+      description="Crea una asignatura nueva y la asocia al docente autenticado.",
+      response_model=AsignaturaResponse,
+      tags=["docente"],
+      responses={
+          400: {"description": "Código duplicado o datos inválidos"},
+          401: {"description": "No autenticado"},
+          403: {"description": "Rol no autorizado"},
+      }
+  )
+#con el depends get_current_docente nos aseguramos de que solo un docente autenticado pueda crear una asignatura, y además obtenemos su id para asociarla a la asignatura que se va a crear.
+def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depends(get_current_docente)):
+    try:
+        asignatura = crear_asignatura(
+            nombre=datos.nombre,
+            codigo=datos.codigo,
+            docente_id=current_user["docente_id"],
+        )
+        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+      
+#Endpoint para poder listar las asignaturas del docente 
+@app.get(
+      "/api/docente/asignaturas",
+      summary="Listar asignaturas del docente",
+      description="Devuelve las asignaturas que imparte el docente autenticado.",
+      response_model=AsignaturasListResponse,
+      tags=["docente"],
+      responses={
+          401: {"description": "No autenticado"},
+          403: {"description": "Rol no autorizado"},
+      }
+  )
+def listar_asignaturas_docente(current_user: dict = Depends(get_current_docente)):
+      asignaturas = get_asignaturas_por_docente(current_user["docente_id"])
+      return {"asignaturas": [
+          {"id": a.id, "nombre": a.nombre, "codigo": a.codigo}
+          for a in asignaturas
+      ]}
+
+#Enpoint para poder obtener los alumnos por asignatura 
+@app.get(
+    "/api/docente/asignaturas/{asignatura_id}/alumnos",
+    summary="Obtener alumnos por asignatura",
+    description="Devuelve la lista de alumnos inscritos en una asignatura específica.",
+    response_model=AlumnosListResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "Rol no autorizado"},
+    }
+)
+def listar_alumnos_por_asignatura(asignatura_id: int, current_user: dict = Depends(get_current_docente)):
+    #comprobamos que la asignatura esta entre las asignturas del docente actual
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    alumnos = get_alumnos_por_asignatura(asignatura_id)
+    return {"alumnos": [
+        {"id": a.id, "nombre": a.nombre, "email": a.email, "nivel": a.nivel}
+        for a in alumnos
+    ]}
+
+#Endpoint para matricular un alumno en una asignatura
+@app.post(
+    "/api/docente/asignaturas/{asignatura_id}/matricular",
+    summary="Matricular alumno en asignatura",
+    description="Matricula a un alumno en la asignatura especificada usando su email.",
+    response_model=MessageResponse,
+    tags=["docente"],
+    responses={
+        400: {"description": "Email no válido o alumno no encontrado"},
+        401: {"description": "No autenticado"},
+        403: {"description": "Rol no autorizado"},
+    }
+)
+def matricular_alumno_endpoint(asignatura_id: int, datos: MatricularRequest, current_user: dict = Depends(get_current_docente)):
+    #comprobamos que la asignatura esta entre las asignaturas del docente actual
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    alumno = get_alumno_by_email(datos.alumno_email)
+    if not alumno or alumno.anonimizado:
+        raise HTTPException(status_code=400, detail=_("ALUMNO NOT FOUND"))
+    try:
+        matricular_alumno_en_asignatura(alumno.id, asignatura_id)
+        return {"message": _("STUDENT ENROLLED SUCCESSFULLY")}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+#Endpoint para obtener el progreso academico de un alumno
+@app.get(
+    "/api/docente/alumnos/{alumno_id}/progreso",
+    summary="Obtener progreso académico",
+    description="Devuelve el historial completo de evaluaciones (Progreso) de un alumno.",
+    response_model=ProgresoResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "El alumno no esta matriculado en ninguna asignatura del docente"},
+    }
+)
+def obtener_progreso_academico(alumno_id: int, current_user: dict = Depends(get_current_docente)):
+    #comprobamos que el alumno esta matriculado en alguna asignatura del docente actual
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    alumno_matriculado = any(
+        alumno_id in [a.id for a in get_alumnos_por_asignatura(asignatura.id)]
+        for asignatura in asignaturas_docente
+    )
+    if not alumno_matriculado:
+        raise HTTPException(status_code=403, detail=_("ACCESS TO STUDENT PROGRESS DENIED"))
+    progreso = get_progreso_alumno(alumno_id)
+    return {"progreso": [
+        {
+            "enunciado": p.enunciado_ejercicio,
+            "codigo_alumno": p.codigo_alumno,
+            "puntuacion": p.puntuacion_ejercicio,
+            "feedback": p.retroalimentacion_ejercicio,
+            "ambito": p.ambito_dificultad,
+            "fecha": p.fecha_evaluacion.isoformat() if p.fecha_evaluacion else None,
+        }
+        for p in progreso
+    ]}
+
+#endpoint para obtener las interacciones
+@app.get(
+    "/api/docente/alumnos/{alumno_id}/interacciones",
+    summary="Obtener interacciones del alumno",
+    description="Devuelve el historial de interacciones del alumno autenticado.",
+    response_model=InteraccionesResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "Rol no autorizado"},
+        500: {"description": "Error interno al obtener las interacciones"},
+    }
+)
+def obtener_interacciones_docente(alumno_id: int, current_user: dict = Depends(get_current_docente)):
+    #comprobamos que el alumno esta matriculado en alguna asignatura del docente actual
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    alumno_matriculado = any(
+        alumno_id in [a.id for a in get_alumnos_por_asignatura(asignatura.id)]
+        for asignatura in asignaturas_docente
+    )
+    if not alumno_matriculado:
+        raise HTTPException(status_code=403, detail=_("ACCESS TO STUDENT INTERACTIONS DENIED"))
+    try:
+        interacciones = get_interacciones(alumno_id)
+        return {"interacciones": [
+            {
+                "mensaje_usuario": i.mensaje_usuario,
+                "respuesta_agente": i.respuesta_agente,
+                "tipo_interaccion": i.tipo_interaccion,
+                "fecha": i.fecha_interaccion.isoformat() if i.fecha_interaccion else None,
+            }
+            for i in interacciones
+        ]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener interacciones: {str(e)}")
+    
+#Creamos el endpoint para importar el excel de los alumnos
+@app.post(
+      "/api/docente/asignaturas/{asignatura_id}/import-alumnos",
+      summary="Importar alumnos autorizados desde Excel",
+      description="Sube un Excel (.xlsx) con columnas 'Nombre', 'Correo electrónico' y opcional 'DNI'. UPSERT por (asignatura, correo).",
+      response_model=ImportResultResponse,
+      tags=["docente"],
+      responses={
+          400: {"description": "Archivo invalido"},
+          403: {"description": "No autorizado para esta asignatura"},
+      }
+  )
+async def import_alumnos_endpoint(
+      asignatura_id: int,
+      #Gracias a esto FastApi recibe un multiPart/form-data con el archivo Excel, y lo valida como un UploadFile, que es un tipo especial de FastApi para manejar archivos subidos por el usuario.
+      file: UploadFile = File(...),
+      current_user: dict = Depends(get_current_docente),
+  ):
+      # autorizacion: la asignatura debe ser del docente actual
+      asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+      if not any(a.id == asignatura_id for a in asignaturas_docente):
+          raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+
+      if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
+          raise HTTPException(status_code=400, detail=_("INVALID FILE FORMAT, EXPECTED EXCEL"))
+
+      try:
+          #bytes del archivo, lo pasamos a io.BytesIO para que pandas lo lea sin tener que guardarlo en disco.
+          content = await file.read()
+          df = pd.read_excel(io.BytesIO(content))
+          insertados, actualizados = import_alumnos_autorizados_excel(asignatura_id, df)
+          return {
+              "insertados": insertados,
+              "actualizados": actualizados,
+              "message": _("IMPORT SUCCESS"),
+          }
+      except Exception as e:
+          raise HTTPException(status_code=500, detail=str(e))
+
+
+#Listar alumnos autorizados de una asignatura
+@app.get(
+    "/api/docente/asignaturas/{asignatura_id}/alumnos-autorizados",
+    summary="Listar alumnos autorizados de una asignatura",
+    description="Devuelve los alumnos autorizados a registrarse en la asignatura, esten o no ya registrados.",
+    response_model=AlumnosAutorizadosListResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado para esta asignatura"},
+    }
+)
+def listar_alumnos_autorizados(asignatura_id: int, current_user: dict = Depends(get_current_docente)):
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    autorizados = get_alumnos_autorizados(asignatura_id)
+    return {"alumnos_autorizados": [
+        {"id": a.id, "asignatura_id": a.asignatura_id, "nombre": a.nombre, "correo": a.correo, "dni": a.dni}
+        for a in autorizados
+    ]}
+
+
+#Añadir manualmente un alumno autorizado a una asignatura
+@app.post(
+    "/api/docente/asignaturas/{asignatura_id}/alumnos-autorizados",
+    summary="Añadir alumno autorizado",
+    description="Añade manualmente un alumno autorizado a la asignatura.",
+    response_model=AlumnoAutorizadoItem,
+    tags=["docente"],
+    responses={
+        400: {"description": "Correo ya autorizado u otros datos invalidos"},
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado para esta asignatura"},
+    }
+)
+def crear_alumno_autorizado_endpoint(asignatura_id: int, datos: AlumnoAutorizadoCreate, current_user: dict = Depends(get_current_docente)):
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    try:
+        nuevo = crear_alumno_autorizado(asignatura_id, datos.nombre, datos.correo, datos.dni)
+        return {
+            "id": nuevo.id,
+            "asignatura_id": nuevo.asignatura_id,
+            "nombre": nuevo.nombre,
+            "correo": nuevo.correo,
+            "dni": nuevo.dni,
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+#Editar un alumno autorizado existente
+@app.put(
+    "/api/docente/alumnos-autorizados/{autorizado_id}",
+    summary="Editar alumno autorizado",
+    description="Actualiza nombre, correo y/o DNI de una autorizacion existente.",
+    response_model=AlumnoAutorizadoItem,
+    tags=["docente"],
+    responses={
+        400: {"description": "Datos invalidos"},
+        401: {"description": "No autenticado"},
+        403: {"description": "La autorizacion no pertenece a una asignatura del docente"},
+        404: {"description": "Autorizacion no encontrada"},
+    }
+)
+def actualizar_alumno_autorizado_endpoint(autorizado_id: int, datos: AlumnoAutorizadoUpdate, current_user: dict = Depends(get_current_docente)):
+    autorizado = get_alumno_autorizado_by_id(autorizado_id)
+    if autorizado is None:
+        raise HTTPException(status_code=404, detail=_("ALUMNO AUTHORIZED NOT FOUND"))
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == autorizado.asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    try:
+        actualizado = actualizar_alumno_autorizado(autorizado_id, datos.nombre, datos.correo, datos.dni)
+        return {
+            "id": actualizado.id,
+            "asignatura_id": actualizado.asignatura_id,
+            "nombre": actualizado.nombre,
+            "correo": actualizado.correo,
+            "dni": actualizado.dni,
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+#Eliminar un alumno autorizado
+@app.delete(
+    "/api/docente/alumnos-autorizados/{autorizado_id}",
+    summary="Eliminar alumno autorizado",
+    description="Elimina una autorizacion existente. NO afecta a la cuenta del alumno si ya se registro.",
+    response_model=MessageResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "La autorizacion no pertenece a una asignatura del docente"},
+        404: {"description": "Autorizacion no encontrada"},
+    }
+)
+def eliminar_alumno_autorizado_endpoint(autorizado_id: int, current_user: dict = Depends(get_current_docente)):
+    autorizado = get_alumno_autorizado_by_id(autorizado_id)
+    if autorizado is None:
+        raise HTTPException(status_code=404, detail=_("ALUMNO AUTHORIZED NOT FOUND"))
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == autorizado.asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    try:
+        eliminar_alumno_autorizado(autorizado_id)
+        return {"message": _("AUTHORIZED STUDENT DELETED")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

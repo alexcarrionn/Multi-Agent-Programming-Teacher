@@ -47,3 +47,17 @@ def get_current_user(token: Optional[str] = Cookie(None, alias="access_token")) 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Cuenta no disponible")
 
     return payload
+
+#Funcion para obtener los datos del docente autenticado a partir de su token JWT
+def get_current_docente(token: Optional[str] = Cookie(None, alias="access_token")) -> dict:
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado")
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido o expirado")
+
+    if payload.get("rol") != "docente":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado: se requiere rol de docente")
+
+    return payload
