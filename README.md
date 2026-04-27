@@ -179,7 +179,7 @@ El servidor arranca en `http://localhost:8000` y:
 
 # Backend (con cualquier servidor ASGI, por ejemplo Uvicorn directamente)
 cd code
-python main.py
+uvicorn main:app
 
 
 La aplicación estará disponible en `http://localhost:3000`. Las llamadas a la API se redirigen automáticamente al backend en el puerto 8000.

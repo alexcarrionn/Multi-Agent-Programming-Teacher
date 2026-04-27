@@ -118,3 +118,7 @@ msgstr "Password reset successfully."
 
 msgid "PASSWORD RESET ERROR"
 msgstr "Error resetting the password. Please try again."
+
+
+msgid "ERROR SAVING TEACHERS"
+msgstr "Error saving docent to the database."

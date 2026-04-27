@@ -118,3 +118,6 @@ msgstr "Contraseña restablecida correctamente."
 
 msgid "PASSWORD RESET ERROR"
 msgstr "Error al restablecer la contraseña. Inténtalo de nuevo."
+
+msgid "ERROR SAVING TEACHERS"
+msgstr "Error al guardar al docente en la base de datos."

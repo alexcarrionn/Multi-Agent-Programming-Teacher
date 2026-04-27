@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT as longText
 from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
@@ -49,19 +49,21 @@ class Progreso(Base):
  
     alumno = relationship("Alumno", back_populates="progreso")
 
-
-class AlumnoAula(Base): 
+class AlumnoAulaAsignatura(Base):
     """
     Tabla que identifica a los alumnos para poder comprobar si tienen acceso al agente docente o no. Esta tabla se va a sacar a 
     través de un proceso de estracción de datos del aula virtual, donde se entraerá un excel con el nombre del alumno, 
     su email y el dni (no es obligatorio). 
     """
-    __tablename__ = 'alumnos_aula'
+    __tablename__ = 'alumnos_aula_asignatura'
+    __table_args__ = (UniqueConstraint('asignatura_id', 'correo', name='uq_alumnoaula_asignatura'),)
     id = Column(Integer, primary_key=True, autoincrement=True)
+    asignatura_id = Column(Integer, ForeignKey('asignaturas.id'), nullable=False) 
     nombre = Column(String(100), nullable=False)
-    correo = Column(String(255), unique=True, nullable=False)
+    #Aqui correo ya no es unique pq el usuario puede estar en varias asignaturas
+    correo = Column(String(255), nullable=False)
     dni = Column(String(20), nullable=True)
-
+    
 class Interaccion(Base): 
     """En esta tabla se van a almacenar las interacciones que tenga el alumno con el agente docente, 
     ya no solo va a existir ese progreso que va a hacer sino que tambien se va a poder visualizar todo lo que el alumno 
@@ -76,4 +78,48 @@ class Interaccion(Base):
     asignatura = Column(String(100), nullable=True)  # Para identificar a qué asignatura se refiere la interacción
 
     alumno = relationship("Alumno", back_populates="interacciones")
+
+#Creamos una  tabla para los docentes
+class Docente(Base):
+    __tablename__ = 'docentes'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    rol = Column(String(50), nullable=False)  # Por ejemplo: "docente", "administrador", etc.
+
+class DocenteAula(Base): 
+    """
+    Tabla que identifica a los docentes para poder comprobar si tienen acceso al agente docente o no. Esta tabla se va a sacar a 
+    través de un proceso de estracción de datos del aula virtual, donde se entraerá un excel con el nombre del docente, 
+    su email y el dni (no es obligatorio). 
+    """
+    __tablename__ = 'docentes_aula'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False)
+    correo = Column(String(255), unique=True, nullable=False)
+    dni = Column(String(20), nullable=True)
+
+#Vamos a poner una tabla en la que se determinen las asignaturas que hay en el aula, para poder relacionarlas con los docentes y los alumnos.
+class Asignatura(Base):
+    __tablename__ = 'asignaturas'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String(100), nullable=False)
+    codigo = Column(String(20), unique=True, nullable=False)
+
+#como un docente puede tener varias asignaturas, y una asignatura puede tener varios docentes, necesitamos una tabla intermedia para relacionar docentes y asignaturas.
+class DocenteAsignatura(Base):
+    __tablename__ = 'docentes_asignaturas'
+    __table_args__ = (UniqueConstraint('docente_id', 'asignatura_id', name='uq_docente_asignatura'),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    docente_id = Column(Integer, ForeignKey('docentes.id'), nullable=False)
+    asignatura_id = Column(Integer, ForeignKey('asignaturas.id'), nullable=False)
+
+#y como varios alumnos pueden estar en varias asignaturas, y una asignatura puede tener varios alumnos, necesitamos otra tabla intermedia para relacionar alumnos y asignaturas.
+class AlumnoAsignatura(Base):
+    __tablename__ = 'alumnos_asignaturas'
+    __table_args__ = (UniqueConstraint('alumno_id', 'asignatura_id', name='uq_alumno_asignatura'),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    alumno_id = Column(Integer, ForeignKey('alumnos.id'), nullable=False)
+    asignatura_id = Column(Integer, ForeignKey('asignaturas.id'), nullable=False)
 
