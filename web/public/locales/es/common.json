@@ -19,6 +19,8 @@
   "login_success_title": "Inicio de sesión correcto",
   "login_success_msg": "Bienvenido de nuevo.",
 
+  "login_docent": "¿Eres docente?, inicia sesión aquí",
+
   "register_title": "Regístrate en Codi",
   "register_subtitle": "Crea tu cuenta y empieza a aprender",
   "register_name": "Nombre completo *",

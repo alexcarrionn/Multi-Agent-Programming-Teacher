@@ -18,7 +18,6 @@ export default function Register() {
     email: "",
     password: "",
     confirmPassword: "",
-    nivel: "",
   });
 
   const getErrorMessage = (err) => {
@@ -55,18 +54,18 @@ export default function Register() {
 
     try {
       const { data } = await axios.post(
-        "/backend/api/register",
-        { nombre: input.nombre, email: input.email, password: input.password, nivel: input.nivel },
+        "/backend/api/docente/register",
+        { nombre: input.nombre, email: input.email, password: input.password },
         { withCredentials: true }
       );
 
       sileo.success({ title: t("register_success_title"), description: data?.message || t("register_success_msg") });
-      setTimeout(() => router.push("/auth/login"), 1500);
+      setTimeout(() => router.push("/auth/docente/login"), 1500);
     } catch (error) {
       handleError(error);
     }
 
-    setInput({ nombre: "", email: "", password: "", confirmPassword: "", nivel: "" });
+    setInput({ nombre: "", email: "", password: "", confirmPassword: "" });
   };
 
   return (
@@ -117,7 +116,7 @@ export default function Register() {
               <input
                 id="password"
                 className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                type="text"
+                type="password"
                 name="password"
                 value={input.password}
                 onChange={handleChange}
@@ -132,7 +131,7 @@ export default function Register() {
               <input
                 id="confirmPassword"
                 className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                type="text"
+                type="password"
                 name="confirmPassword"
                 value={input.confirmPassword}
                 onChange={handleChange}
@@ -141,37 +140,18 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700" htmlFor="nivel">
-              {t("register_level")}
-            </label>
-            <select
-              id="nivel"
-              name="nivel"
-              value={input.nivel}
-              onChange={handleChange}
-              className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm bg-white"
-              required
-            >
-              <option value="" disabled>{t("register_level_placeholder")}</option>
-              <option value="principiante">{t("register_level_beginner")}</option>
-              <option value="intermedio">{t("register_level_intermediate")}</option>
-              <option value="avanzado">{t("register_level_advanced")}</option>
-            </select>
-          </div>
-
           <div className="flex flex-col gap-3 mt-4">
             <button type="submit" className="btn-codi-animated mt-4">
               {t("register_submit")}
             </button>
             <Button asChild variant="outline" type="button" className="w-full py-2.5 rounded-lg">
-              <Link href="/auth/login">{t("cancel")}</Link>
+              <Link href="/auth/docente/login">{t("cancel")}</Link>
             </Button>
           </div>
 
           <p className="mt-2 text-sm text-gray-600 text-center">
             {t("register_has_account")}{" "}
-            <Link href="/auth/login" className="text-blue-600 font-semibold hover:underline">
+            <Link href="/auth/docente/login" className="text-blue-600 font-semibold hover:underline">
               {t("register_login_link")}
             </Link>.
           </p>

@@ -61,16 +61,16 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/backend/api/login", {
+      await axios.post("/backend/api/docente/login", {
         email: input.email,
         password: input.password,
       }, { withCredentials: true });
 
-      const { data } = await axios.get("/backend/api/me", { withCredentials: true });
+      const { data } = await axios.get("/backend/api/docente/me", { withCredentials: true });
       setUser(data);
 
       sileo.success({ title: t("login_success_title"), description: t("login_success_msg") });
-      setTimeout(() => router.push("/"), 1000);
+      setTimeout(() => router.push("/docente"), 1000);
     } catch (error) {
       if (isInvalidCredentialsError(error)) {
         setInput({ email: "", password: "" });
@@ -131,13 +131,13 @@ export default function Login() {
               {t("login_submit")}
             </button>
             <Button asChild variant="outline" type="button" className="w-full py-2.5 rounded-lg">
-              <Link href="/">{t("cancel")}</Link>
+              <Link href="/auth/login">{t("cancel")}</Link>
             </Button>
           </div>
 
           <p className="mt-4 text-sm text-gray-600 text-center">
             {t("login_no_account")}{" "}
-            <Link href="/auth/register" className="text-blue-600 font-semibold hover:underline">
+            <Link href="/auth/docente/register" className="text-blue-600 font-semibold hover:underline">
               {t("login_register_link")}
             </Link>.
           </p>
@@ -145,12 +145,6 @@ export default function Login() {
           <p className="mt-4 text-sm text-gray-600 text-center">
             <Link href="/auth/forgot-password" className="text-blue-600 font-semibold hover:underline">
               {t("login_forgot")}
-            </Link>
-          </p>
-
-          <p className="mt-4 text-sm text-gray-600 text-center">
-            <Link href="/auth/docente/login" className="text-blue-600 font-semibold hover:underline">
-              {t("login_docent")}
             </Link>
           </p>
         </form>

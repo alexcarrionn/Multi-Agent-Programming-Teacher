@@ -26,3 +26,4 @@ pydantic
 watchfiles
 pandas
 python-jose[cryptography]
+python-multipart

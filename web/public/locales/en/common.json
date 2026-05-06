@@ -19,6 +19,8 @@
   "login_success_title": "Login successful",
   "login_success_msg": "Welcome back.",
 
+  "login_docent": "Are you a teacher? Sign in here",
+
   "register_title": "Sign up for Codi",
   "register_subtitle": "Create your account and start learning",
   "register_name": "Full name *",
