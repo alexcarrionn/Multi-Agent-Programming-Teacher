@@ -143,6 +143,12 @@ msgstr "Ya existe una asignatura con ese código."
 msgid "ASIGNATURA NOT FOUND"
 msgstr "No se ha encontrado la asignatura."
 
+msgid "INVALID INVITATION CODE"
+msgstr "El código de invitación no es válido."
+
+msgid "ALREADY JOINED ASIGNATURA"
+msgstr "Ya estás adscrito a esta asignatura."
+
 msgid "ALUMNO ALREADY ENROLLED"
 msgstr "El alumno ya está matriculado en esta asignatura."
 

@@ -144,6 +144,12 @@ msgstr "A subject with that code already exists."
 msgid "ASIGNATURA NOT FOUND"
 msgstr "Subject not found."
 
+msgid "INVALID INVITATION CODE"
+msgstr "The invitation code is not valid."
+
+msgid "ALREADY JOINED ASIGNATURA"
+msgstr "You are already assigned to this subject."
+
 msgid "ALUMNO ALREADY ENROLLED"
 msgstr "The student is already enrolled in this subject."
 

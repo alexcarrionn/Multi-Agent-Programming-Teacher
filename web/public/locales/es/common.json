@@ -89,5 +89,22 @@
   "chat_placeholder": "Escribe tu mensaje...",
   "chat_loading_placeholder": "Codi está escribiendo...",
 
-  "home_footer": "Codi es una IA de apoyo educativo y puede cometer errores. Para cualquier duda o problema, contacta con el equipo docente de la asignatura."
+  "home_footer": "Codi es una IA de apoyo educativo y puede cometer errores. Para cualquier duda o problema, contacta con el equipo docente de la asignatura.",
+
+  "docente_panel": "Panel docente",
+  "docente_my_subjects": "Mis asignaturas",
+  "docente_no_subjects": "Aún no tienes asignaturas. Crea una nueva o únete a una existente con un código de invitación.",
+  "docente_create_subject": "Crear asignatura",
+  "docente_join_subject": "Unirme con código",
+  "docente_create_subject_desc": "Introduce el nombre y un código único para identificar la asignatura.",
+  "docente_join_subject_desc": "Pega el código de invitación que te ha compartido el creador de la asignatura.",
+  "docente_subject_name": "Nombre de la asignatura",
+  "docente_subject_code": "Código",
+  "docente_invitation_code": "Código de invitación",
+  "docente_invitation_code_input": "Código de invitación",
+  "docente_copy_code": "Copiar código",
+  "docente_create_success_title": "Asignatura creada",
+  "docente_create_success_msg": "La asignatura se ha creado correctamente.",
+  "docente_join_success_title": "Te has unido a la asignatura",
+  "docente_join_success_msg": "Ya puedes verla en tu panel."
 }

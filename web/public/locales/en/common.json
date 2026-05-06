@@ -89,5 +89,22 @@
   "chat_placeholder": "Type your message...",
   "chat_loading_placeholder": "Codi is typing...",
 
-  "home_footer": "Codi is an AI educational support tool and may make mistakes. For any questions or issues, contact your course instructor."
+  "home_footer": "Codi is an AI educational support tool and may make mistakes. For any questions or issues, contact your course instructor.",
+
+  "docente_panel": "Teacher panel",
+  "docente_my_subjects": "My subjects",
+  "docente_no_subjects": "You don't have any subjects yet. Create a new one or join an existing one with an invitation code.",
+  "docente_create_subject": "Create subject",
+  "docente_join_subject": "Join with code",
+  "docente_create_subject_desc": "Enter the name and a unique code to identify the subject.",
+  "docente_join_subject_desc": "Paste the invitation code shared by the subject creator.",
+  "docente_subject_name": "Subject name",
+  "docente_subject_code": "Code",
+  "docente_invitation_code": "Invitation code",
+  "docente_invitation_code_input": "Invitation code",
+  "docente_copy_code": "Copy code",
+  "docente_create_success_title": "Subject created",
+  "docente_create_success_msg": "The subject has been created successfully.",
+  "docente_join_success_title": "You joined the subject",
+  "docente_join_success_msg": "You can now see it in your panel."
 }

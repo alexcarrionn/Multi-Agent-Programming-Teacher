@@ -46,7 +46,8 @@ from database.repository import (
     get_alumno_autorizado_by_id,
     crear_alumno_autorizado,
     actualizar_alumno_autorizado,
-    eliminar_alumno_autorizado,)
+    eliminar_alumno_autorizado,
+    unirse_asignatura)
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
 from load_data import SUPPORTED_FORMATS ,eliminar_documentacion, indexar_documentos, actualizar_documentacion
@@ -203,6 +204,9 @@ class AsignaturaCreate(BaseModel):
 class MatricularRequest(BaseModel):
       alumno_email: str
 
+class UnirseAsignaturaRequest(BaseModel):
+      codigo: str
+
 class AlumnoAutorizadoCreate(BaseModel):
       nombre: str
       correo: str
@@ -223,11 +227,13 @@ class AlumnoDataResponse(BaseModel):
     nombre: str
     nivel: str
     alumno_id: int
+    rol: str = "alumno"
 
 class DocenteDataResponse(BaseModel):
     email: str
     nombre: str
     docente_id: int
+    rol: str = "docente"
 
 class InteraccionItem(BaseModel):
     mensaje_usuario: str
@@ -245,6 +251,7 @@ class AsignaturaResponse(BaseModel):
     id: int
     nombre: str
     codigo: str
+    codigo_invitacion: str
 
 class AsignaturasListResponse(BaseModel):
     asignaturas: list[AsignaturaResponse]
@@ -405,7 +412,8 @@ def login_docente(datos: DocenteLogin, response: Response):
     }
 )
 def obtener_datos_alumno_actual(current_user: dict = Depends(get_current_user)):
-    return {"email": current_user["sub"], "nombre": current_user["nombre"], "nivel": current_user["nivel"], "alumno_id": current_user["alumno_id"]}
+    return {"email": current_user["sub"], "nombre": current_user["nombre"], "nivel": current_user["nivel"], "alumno_id": current_user["alumno_id"], "rol": current_user["rol"]}
+
 @app.get(
     "/api/docente/me",
     summary="Obtener datos del docente",
@@ -417,7 +425,8 @@ def obtener_datos_alumno_actual(current_user: dict = Depends(get_current_user)):
     }
 )
 def obtener_datos_docente_actual(current_user: dict = Depends(get_current_docente)):
-    return {"email": current_user["sub"], "nombre": current_user["nombre"], "docente_id": current_user["docente_id"]}
+    return {"email": current_user["sub"], "nombre": current_user["nombre"], "docente_id": current_user["docente_id"], "rol": current_user["rol"]}
+
 @app.post(
     "/api/logout",
     summary="Cerrar sesión",
@@ -646,13 +655,13 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
             codigo=datos.codigo,
             docente_id=current_user["docente_id"],
         )
-        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo}
+        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-      
-#Endpoint para poder listar las asignaturas del docente 
+
+#Endpoint para poder listar las asignaturas del docente
 @app.get(
       "/api/docente/asignaturas",
       summary="Listar asignaturas del docente",
@@ -667,7 +676,7 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
 def listar_asignaturas_docente(current_user: dict = Depends(get_current_docente)):
       asignaturas = get_asignaturas_por_docente(current_user["docente_id"])
       return {"asignaturas": [
-          {"id": a.id, "nombre": a.nombre, "codigo": a.codigo}
+          {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion}
           for a in asignaturas
       ]}
 
@@ -937,6 +946,7 @@ def actualizar_alumno_autorizado_endpoint(autorizado_id: int, datos: AlumnoAutor
         404: {"description": "Autorizacion no encontrada"},
     }
 )
+
 def eliminar_alumno_autorizado_endpoint(autorizado_id: int, current_user: dict = Depends(get_current_docente)):
     autorizado = get_alumno_autorizado_by_id(autorizado_id)
     if autorizado is None:
@@ -950,3 +960,24 @@ def eliminar_alumno_autorizado_endpoint(autorizado_id: int, current_user: dict =
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+#EndPoint para poder unirse a una asignatura desde el lado del docente, usando un codigo de asignatura
+@app.post(
+    "/api/docente/unirse-asignatura",
+    summary="Unirse a asignatura existente",
+    description="Permite al docente unirse a una asignatura ya creada usando su código único.",
+    response_model=AsignaturaResponse,
+    tags=["docente"],
+    responses={
+        400: {"description": "Código de asignatura no válido o ya asociado al docente"},
+        401: {"description": "No autenticado"},
+    }
+)
+def unirse_asignatura_endpoint(datos: UnirseAsignaturaRequest, current_user: dict = Depends(get_current_docente)):
+    try:
+        asignatura = unirse_asignatura(current_user["docente_id"], datos.codigo)
+        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

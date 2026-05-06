@@ -417,8 +417,8 @@ def crear_asignatura(nombre: str,codigo: str, docente_id: int) -> Asignatura:
           existing = session.query(Asignatura).filter(Asignatura.codigo == codigo).first()
           if existing is not None:
               raise ValueError(_("ASIGNATURA ALREADY EXISTS"))
-
-          nueva = Asignatura(nombre=nombre, codigo=codigo)
+          codigo_invitacion = str(uuid.uuid4().hex)[:8]  # Generar un código de invitación único
+          nueva = Asignatura(nombre=nombre, codigo=codigo, codigo_invitacion=codigo_invitacion)
           session.add(nueva)
           session.flush()  # asigna el id sin cerrar la transacción
 
@@ -433,6 +433,35 @@ def crear_asignatura(nombre: str,codigo: str, docente_id: int) -> Asignatura:
           raise
     finally:
           session.close()
+
+def unirse_asignatura(docente_id: int, codigo_invitacion: str) -> Asignatura:
+    """Adscribe un docente a una asignatura existente usando su código de invitación."""
+    session = SessionLocal()
+    try:
+        asignatura = session.query(Asignatura).filter(
+            Asignatura.codigo_invitacion == codigo_invitacion
+        ).first()
+        if asignatura is None:
+            raise ValueError(_("INVITATION CODE INVALID"))
+
+        existing = session.query(DocenteAsignatura).filter(
+            DocenteAsignatura.docente_id == docente_id,
+            DocenteAsignatura.asignatura_id == asignatura.id,
+        ).first()
+        if existing is not None:
+            raise ValueError(_("ALREADY JOINED ASIGNATURA"))
+
+        relacion = DocenteAsignatura(docente_id=docente_id, asignatura_id=asignatura.id)
+        session.add(relacion)
+        session.commit()
+        session.refresh(asignatura)
+        return asignatura
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
 
 def get_alumnos_por_asignatura(asignatura_id: int) -> list[Alumno]:
     "Devuelve los alumnos matriculados en una asignatura, excluyendo cuentas anonimizadas."
@@ -623,3 +652,4 @@ def eliminar_alumno_autorizado(autorizado_id: int):
             raise
         finally:
             session.close()
+

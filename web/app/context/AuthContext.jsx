@@ -10,15 +10,32 @@ export function AuthProvider({ children }) {
 
     // Al montar comprobamos que este la sesion activa en la cookie. 
     useEffect(() => {
-                axios.get("/backend/api/me", { withCredentials: true })
-      .then(res => setUser(res.data))
-      .catch(() => setUser(false)) 
-      .finally(() => setLoading(false));
+        const fetchUser = async () => {
+            try {
+                const res = await axios.get("/backend/api/me", { withCredentials: true });
+                setUser(res.data);                      // res.data.rol === "alumno"
+            } catch {
+                try {
+                    const res = await axios.get("/backend/api/docente/me", { withCredentials: true });
+                    setUser(res.data);                  // res.data.rol === "docente"
+                } catch {
+                    setUser(false);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUser();
     }, []);
 
     const logout = async () => {
-                await axios.post("/backend/api/logout", null, { withCredentials: true });
-        setUser(false);
+        // Dependiendo del rol del usuario, se llama a un endpoint de logout diferente 
+         const endpoint = user?.rol === "docente" ? "/backend/api/docente/logout" : "/backend/api/logout";
+         try {
+            await axios.post(endpoint, {}, { withCredentials: true });
+         }finally {
+            setUser(false);
+         }
     };
 
     return (
