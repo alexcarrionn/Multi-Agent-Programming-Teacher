@@ -126,7 +126,12 @@ export default function DocenteDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 hidden sm:block">{user?.nombre}</span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+            >
               {t("header_logout")}
             </Button>
           </div>
@@ -137,10 +142,10 @@ export default function DocenteDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <h1 className="text-2xl font-bold text-gray-900">{t("docente_my_subjects")}</h1>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setJoinOpen(true)}>
+            <Button variant="outline" className="w-50" onClick={() => setJoinOpen(true)}>
               <LogIn /> {t("docente_join_subject")}
             </Button>
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button className="btn-codi-animated w-50" onClick={() => setCreateOpen(true)}>
               <Plus /> {t("docente_create_subject")}
             </Button>
           </div>
@@ -163,11 +168,18 @@ export default function DocenteDashboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {asignaturas.map((a) => (
-              <button
+              <div
                 key={a.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => router.push(`/docente/asignaturas/${a.id}`)}
-                className="text-left bg-white p-5 rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/docente/asignaturas/${a.id}`);
+                  }
+                }}
+                className="text-left bg-white p-5 rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <h2 className="font-semibold text-gray-900 mb-1">{a.nombre}</h2>
                 <p className="text-xs text-gray-500 mb-4">{t("docente_subject_code")}: {a.codigo}</p>
@@ -185,7 +197,7 @@ export default function DocenteDashboard() {
                     {copiedId === a.id ? <Check /> : <Copy />}
                   </Button>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}

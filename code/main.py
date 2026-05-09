@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Response, UploadFile, File
@@ -655,6 +656,14 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
             codigo=datos.codigo,
             docente_id=current_user["docente_id"],
         )
+        nombre_capitalizado = datos.nombre.lower().replace(' ', '_')
+        #creamos la carpeta de la asiognatura para que el docente pueda meter toda la informacion acerca de la asignatura
+        os.makedirs(DATA_ROOT / nombre_capitalizado, exist_ok=True)
+
+        #Tambien creamos las carpetas de teoria y de practicas dentro de la nueva carpeta creada
+        os.makedirs(DATA_ROOT / nombre_capitalizado / "teoria", exist_ok=True)
+        os.makedirs(DATA_ROOT / nombre_capitalizado / "practicas", exist_ok=True) 
+        #Asi lo que haremos sera crear la carpeta con la que persistiremos los documentos de la base de datos  
         return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))

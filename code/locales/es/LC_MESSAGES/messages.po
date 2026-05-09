@@ -140,6 +140,9 @@ msgstr "Error al eliminar la cuenta. Inténtalo de nuevo."
 msgid "ASIGNATURA ALREADY EXISTS"
 msgstr "Ya existe una asignatura con ese código."
 
+msgid "ASIGNATURA NAME ALREADY EXISTS"
+msgstr "Ya existe una asignatura con ese nombre."
+
 msgid "ASIGNATURA NOT FOUND"
 msgstr "No se ha encontrado la asignatura."
 

@@ -141,6 +141,9 @@ msgstr "Error deleting the account. Please try again."
 msgid "ASIGNATURA ALREADY EXISTS"
 msgstr "A subject with that code already exists."
 
+msgid "ASIGNATURA NAME ALREADY EXISTS"
+msgstr "A subject with that name already exists."
+
 msgid "ASIGNATURA NOT FOUND"
 msgstr "Subject not found."
 

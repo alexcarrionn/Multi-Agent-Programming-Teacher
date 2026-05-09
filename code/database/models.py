@@ -86,7 +86,6 @@ class Docente(Base):
     nombre = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
-    rol = Column(String(50), nullable=False)  # Por ejemplo: "docente", "administrador", etc.
 
 class DocenteAula(Base): 
     """

@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, text
 import io
 from sqlalchemy.orm import sessionmaker
 from database.models import AlumnoAulaAsignatura, Base, Alumno, DocenteAula, Progreso, Interaccion, Docente, Asignatura, DocenteAsignatura, AlumnoAsignatura
@@ -413,12 +413,22 @@ def crear_asignatura(nombre: str,codigo: str, docente_id: int) -> Asignatura:
     """Crea una asignatura y la asocia al docente que la crea."""
     session = SessionLocal()
     try:
+          
+
+          nombre_limpio = nombre.strip()
+          codigo_limpio = codigo.strip()
           # Comprobar que no existe ya una asignatura con ese código
-          existing = session.query(Asignatura).filter(Asignatura.codigo == codigo).first()
+          existing = session.query(Asignatura).filter(Asignatura.codigo == codigo_limpio).first()
+
           if existing is not None:
               raise ValueError(_("ASIGNATURA ALREADY EXISTS"))
+          existing_nombre = session.query(Asignatura).filter(func.lower(Asignatura.nombre) == nombre_limpio.lower()).first()
+
+          if existing_nombre is not None:
+              raise ValueError(_("ASIGNATURA NAME ALREADY EXISTS"))
+          
           codigo_invitacion = str(uuid.uuid4().hex)[:8]  # Generar un código de invitación único
-          nueva = Asignatura(nombre=nombre, codigo=codigo, codigo_invitacion=codigo_invitacion)
+          nueva = Asignatura(nombre=nombre_limpio, codigo=codigo_limpio, codigo_invitacion=codigo_invitacion)
           session.add(nueva)
           session.flush()  # asigna el id sin cerrar la transacción
 
