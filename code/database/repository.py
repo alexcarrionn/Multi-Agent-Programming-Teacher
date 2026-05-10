@@ -530,11 +530,10 @@ def get_progreso_alumno(alumno_id: int) -> list[Progreso]:
 
 
 #Vamos a crear una funcion para poder hacer UPSERT en la tabla de alumno autorizados en la bbdd
-def import_alumnos_autorizados_excel(asignatura_id: int, df) -> tuple[int, int]:
+def import_alumnos_autorizados_excel(asignatura_id: int, df) -> int:
     session = SessionLocal()
     insertador = 0
-    actualizados = 0 
-    try: 
+    try:
         for idx, row in df.iterrows():
             nombre = None if pd.isna(row.get("Nombre")) else str(row.get("Nombre")).strip()
             correo = None if pd.isna(row.get("Correo electrónico")) else str(row.get("Correo electrónico")).strip()
@@ -551,7 +550,6 @@ def import_alumnos_autorizados_excel(asignatura_id: int, df) -> tuple[int, int]:
             if existente is not None:
                 existente.nombre = nombre
                 existente.dni = dni
-                actualizados += 1
             else:
                 nuevo = AlumnoAulaAsignatura(
                     asignatura_id=asignatura_id,
@@ -562,9 +560,25 @@ def import_alumnos_autorizados_excel(asignatura_id: int, df) -> tuple[int, int]:
                 session.add(nuevo)
                 insertador += 1
 
+            # Si el alumno ya tiene cuenta en Codi y no esta anonimizado, matricular en la asignatura
+            alumno = session.query(Alumno).filter(
+                Alumno.email == correo,
+                Alumno.anonimizado == False
+            ).first()
+            if alumno is not None:
+                ya_matriculado = session.query(AlumnoAsignatura).filter(
+                    AlumnoAsignatura.alumno_id == alumno.id,
+                    AlumnoAsignatura.asignatura_id == asignatura_id
+                ).first()
+                if ya_matriculado is None:
+                    session.add(AlumnoAsignatura(
+                        alumno_id=alumno.id,
+                        asignatura_id=asignatura_id
+                    ))
+
         session.commit()
-        return insertador, actualizados
-    except Exception: 
+        return insertador
+    except Exception:
         session.rollback()
         raise
     finally:
@@ -662,4 +676,36 @@ def eliminar_alumno_autorizado(autorizado_id: int):
             raise
         finally:
             session.close()
+
+#Funcion que va a permitir eliminar de la asignatura a un alumno adscrito
+def eliminar_alumno_de_asignatura(alumno_id: int, asignatura_id: int):
+    session = SessionLocal()
+    try:
+        matricula = session.query(AlumnoAsignatura).filter(
+            AlumnoAsignatura.alumno_id == alumno_id,
+            AlumnoAsignatura.asignatura_id == asignatura_id
+        ).first()
+        if matricula is None:
+            raise ValueError(_("ALUMNO NOT ENROLLED IN ASIGNATURA"))
+
+        session.delete(matricula)
+
+        # Tambien eliminamos su autorizacion para que un re-import del Excel
+        # no le vuelva a matricular automaticamente.
+        alumno = session.query(Alumno).filter(Alumno.id == alumno_id).first()
+        if alumno is not None:
+            autorizado = session.query(AlumnoAulaAsignatura).filter(
+                AlumnoAulaAsignatura.asignatura_id == asignatura_id,
+                AlumnoAulaAsignatura.correo == alumno.email
+            ).first()
+            if autorizado is not None:
+                session.delete(autorizado)
+
+        session.commit()
+    except Exception as e:
+        print(f"{_('ERROR REMOVING STUDENT FROM ASIGNATURA')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
 

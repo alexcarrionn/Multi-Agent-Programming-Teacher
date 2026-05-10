@@ -48,6 +48,7 @@ from database.repository import (
     crear_alumno_autorizado,
     actualizar_alumno_autorizado,
     eliminar_alumno_autorizado,
+    eliminar_alumno_de_asignatura,
     unirse_asignatura)
 from graph.workflow import stream_graph_updates
 from i18n import setup_i18n
@@ -289,7 +290,6 @@ class AlumnosAutorizadosListResponse(BaseModel):
 
 class ImportResultResponse(BaseModel):
     insertados: int
-    actualizados: int
     message: str
 
 # --- Endpoints de autenticación ---
@@ -689,6 +689,27 @@ def listar_asignaturas_docente(current_user: dict = Depends(get_current_docente)
           for a in asignaturas
       ]}
 
+#EndPoint para obtener la asignatura por su id\
+@app.get(
+        "/api/docente/asignaturas/{asignatura_id}",
+        summary="Obtener asignatura por ID",
+        description="Devuelve los detalles de una asignatura específica por su ID, solo si pertenece al docente autenticado.",
+        response_model=AsignaturaResponse,
+        tags=["docente"],
+        responses={
+            401: {"description": "No autenticado"},
+            403: {"description": "Acceso denegado a la asignatura"},
+        }
+)
+def obtener_asignatura_por_id(asignatura_id: int, current_user: dict = Depends(get_current_docente)):
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    asignatura = next((a for a in asignaturas_docente if a.id == asignatura_id), None)
+    if asignatura is None:
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
+
+
+
 #Enpoint para poder obtener los alumnos por asignatura 
 @app.get(
     "/api/docente/asignaturas/{asignatura_id}/alumnos",
@@ -841,10 +862,9 @@ async def import_alumnos_endpoint(
           #bytes del archivo, lo pasamos a io.BytesIO para que pandas lo lea sin tener que guardarlo en disco.
           content = await file.read()
           df = pd.read_excel(io.BytesIO(content))
-          insertados, actualizados = import_alumnos_autorizados_excel(asignatura_id, df)
+          insertados = import_alumnos_autorizados_excel(asignatura_id, df)
           return {
               "insertados": insertados,
-              "actualizados": actualizados,
               "message": _("IMPORT SUCCESS"),
           }
       except Exception as e:
@@ -986,6 +1006,33 @@ def unirse_asignatura_endpoint(datos: UnirseAsignaturaRequest, current_user: dic
     try:
         asignatura = unirse_asignatura(current_user["docente_id"], datos.codigo)
         return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+#Endpoint nuevo para poder eliminar a un alumno de una asignatura desde el lado del docente
+@app.delete(
+    "/api/docente/asignaturas/{asignatura_id}/alumnos/{alumno_id}",
+    summary="Eliminar alumno de asignatura",
+    description="Permite al docente eliminar a un alumno de una asignatura, lo que implica eliminar su progreso y evaluaciones asociadas a esa asignatura." \
+    "De momento solo se elimina la matricula del alumno en la asignatura, pero se mantiene su progreso para un estudio posterior",
+    response_model=MessageResponse,
+    tags=["docente"],
+    responses={
+        400: {"description": "Alumno no encontrado o no matriculado en la asignatura"},
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado para esta asignatura"},
+    }
+)
+def eliminar_alumno_endpoint(asignatura_id: int, alumno_id: int, current_user: dict = Depends(get_current_docente)):
+    #comprobamos que la asignatura esta entre las asignaturas del docente actual
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    if not any(a.id == asignatura_id for a in asignaturas_docente):
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    try:
+        eliminar_alumno_de_asignatura(alumno_id, asignatura_id)
+        return {"message": _("STUDENT REMOVED FROM ASSIGNMENT")}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:

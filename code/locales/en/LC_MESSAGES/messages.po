@@ -188,3 +188,12 @@ msgstr "Import completed successfully."
 
 msgid "AUTHORIZED STUDENT DELETED"
 msgstr "Student authorization deleted successfully."
+
+msgid "ALUMNO NOT ENROLLED IN ASIGNATURA"
+msgstr "The student is not enrolled in this subject."
+
+msgid "ERROR REMOVING STUDENT FROM ASIGNATURA"
+msgstr "Error removing the student from the subject."
+
+msgid "STUDENT REMOVED FROM ASSIGNMENT"
+msgstr "Student removed from the subject successfully."

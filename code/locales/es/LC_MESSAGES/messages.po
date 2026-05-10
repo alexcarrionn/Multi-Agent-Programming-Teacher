@@ -187,3 +187,12 @@ msgstr "Importación completada correctamente."
 
 msgid "AUTHORIZED STUDENT DELETED"
 msgstr "Autorización del alumno eliminada correctamente."
+
+msgid "ALUMNO NOT ENROLLED IN ASIGNATURA"
+msgstr "El alumno no está matriculado en esta asignatura."
+
+msgid "ERROR REMOVING STUDENT FROM ASIGNATURA"
+msgstr "Error al eliminar al alumno de la asignatura."
+
+msgid "STUDENT REMOVED FROM ASSIGNMENT"
+msgstr "Alumno eliminado de la asignatura correctamente."
