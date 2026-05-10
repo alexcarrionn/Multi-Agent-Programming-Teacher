@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import { sileo } from "sileo";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, FileText, Trash2, Upload } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useTranslation } from "react-i18next";
 import "@/lib/i18n";
@@ -45,6 +45,12 @@ export default function AsignaturaPage() {
   const [newDni, setNewDni] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const [documentos, setDocumentos] = useState([]);
+  const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [docTipo, setDocTipo] = useState("teoria");
+  const [docFiles, setDocFiles] = useState([]);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
+
   const getErrorMessage = (err) => {
     if (axios.isAxiosError(err)) {
       return err.response?.data?.detail || err.response?.data?.message || err.message || t("error_network");
@@ -64,16 +70,30 @@ export default function AsignaturaPage() {
     }
   }, [id, t]);
 
+  const fetchDocumentos = useCallback(async () => {
+    try {
+      const { data } = await axios.get(
+        `/backend/api/docente/asignaturas/${id}/documentos`,
+        { withCredentials: true }
+      );
+      setDocumentos(data.documentos || []);
+    } catch (err) {
+      sileo.error({ title: t("error"), description: getErrorMessage(err) });
+    }
+  }, [id, t]);
+
   useEffect(() => {
     if (!id) return;
     const load = async () => {
       try {
-        const [asignaturaRes, alumnosRes] = await Promise.all([
+        const [asignaturaRes, alumnosRes, documentosRes] = await Promise.all([
           axios.get(`/backend/api/docente/asignaturas/${id}`, { withCredentials: true }),
           axios.get(`/backend/api/docente/asignaturas/${id}/alumnos`, { withCredentials: true }),
+          axios.get(`/backend/api/docente/asignaturas/${id}/documentos`, { withCredentials: true }),
         ]);
         setAsignatura(asignaturaRes.data);
         setAlumnos(alumnosRes.data.alumnos || []);
+        setDocumentos(documentosRes.data.documentos || []);
       } catch (err) {
         if (err.response?.status === 403) {
           sileo.error({
@@ -170,6 +190,61 @@ export default function AsignaturaPage() {
     }
   };
 
+  const resetDocDialog = () => {
+    setDocTipo("teoria");
+    setDocFiles([]);
+  };
+
+  const handleSubmitDocs = async (e) => {
+    e.preventDefault();
+    if (docFiles.length === 0) return;
+    setUploadingDocs(true);
+    try {
+      const formData = new FormData();
+      formData.append("tipo", docTipo);
+      docFiles.forEach((f) => formData.append("files", f));
+      const { data } = await axios.post(
+        `/backend/api/docente/asignaturas/${id}/documentos`,
+        formData,
+        { withCredentials: true, headers: { "Content-Type": "multipart/form-data" } }
+      );
+      sileo.success({
+        title: t("docente_doc_upload_success_title"),
+        description: t("docente_doc_upload_success_msg", {
+          insertados: data.insertados,
+          fallos: data.fallos.length,
+        }),
+      });
+      setDocDialogOpen(false);
+      resetDocDialog();
+      await fetchDocumentos();
+    } catch (err) {
+      sileo.error({ title: t("error"), description: getErrorMessage(err) });
+    } finally {
+      setUploadingDocs(false);
+    }
+  };
+
+  const handleDeleteDocumento = async (doc) => {
+    if (!confirm(t("docente_doc_delete_confirm", { nombre: doc.nombre }))) return;
+    try {
+      await axios.delete(
+        `/backend/api/docente/asignaturas/${id}/documentos`,
+        {
+          withCredentials: true,
+          params: { tipo: doc.tipo, nombre: doc.nombre },
+        }
+      );
+      sileo.success({
+        title: t("docente_doc_delete_success_title"),
+        description: t("docente_doc_delete_success_msg"),
+      });
+      await fetchDocumentos();
+    } catch (err) {
+      sileo.error({ title: t("error"), description: getErrorMessage(err) });
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     router.push("/auth/docente/login");
@@ -231,6 +306,16 @@ export default function AsignaturaPage() {
                   <Button onClick={handleUploadClick} disabled={uploading}>
                     <Upload /> {uploading ? t("loading") : t("docente_upload_excel_button")}
                   </Button>
+                  <button
+                    type="button"
+                    onClick={() => setDocDialogOpen(true)}
+                    disabled={uploadingDocs}
+                    className="btn-codi-animated rounded-md px-3.5 text-sm whitespace-nowrap inline-flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ width: "auto", height: "2.25rem", fontSize: "0.875rem" }}
+                  >
+                    <FileText className="w-4 h-4" />
+                    {t("docente_add_doc_button")}
+                  </button>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -239,6 +324,45 @@ export default function AsignaturaPage() {
                   className="hidden"
                   onChange={handleFileChange}
                 />
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("docente_doc_section_title")}</h2>
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {documentos.length === 0 ? (
+                  <p className="p-6 text-sm text-gray-500">{t("docente_doc_empty")}</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("docente_doc_col_nombre")}</TableHead>
+                        <TableHead className="w-32">{t("docente_doc_col_tipo")}</TableHead>
+                        <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {documentos.map((d) => (
+                        <TableRow key={`${d.tipo}/${d.nombre}`}>
+                          <TableCell className="font-medium">{d.nombre}</TableCell>
+                          <TableCell className="text-gray-600">
+                            {d.tipo === "teoria" ? t("docente_doc_tipo_teoria") : t("docente_doc_tipo_practicas")}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={t("docente_doc_delete")}
+                              onClick={() => handleDeleteDocumento(d)}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </div>
 
@@ -295,6 +419,93 @@ export default function AsignaturaPage() {
           </>
         ) : null}
       </section>
+
+      <Dialog
+        open={docDialogOpen}
+        onOpenChange={(open) => {
+          setDocDialogOpen(open);
+          if (!open) resetDocDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("docente_doc_dialog_title")}</DialogTitle>
+            <DialogDescription>{t("docente_doc_dialog_desc")}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitDocs} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">{t("docente_doc_tipo_label")}</span>
+              <select
+                value={docTipo}
+                onChange={(e) => setDocTipo(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="teoria">{t("docente_doc_tipo_teoria")}</option>
+                <option value="practicas">{t("docente_doc_tipo_practicas")}</option>
+              </select>
+            </label>
+            <div className="flex flex-col gap-2 text-sm">
+              <span className="font-medium">{t("docente_doc_files_label")}</span>
+              <input
+                id="doc-files-input"
+                type="file"
+                multiple
+                accept=".pdf,.txt,.docx,.md"
+                onChange={(e) => {
+                  const nuevos = Array.from(e.target.files || []);
+                  setDocFiles((prev) => {
+                    const existentes = new Set(prev.map((f) => f.name));
+                    return [...prev, ...nuevos.filter((f) => !existentes.has(f.name))];
+                  });
+                  e.target.value = "";
+                }}
+                className="hidden"
+              />
+              <label
+                htmlFor="doc-files-input"
+                className="cursor-pointer border border-dashed border-gray-300 rounded-md px-4 py-6 text-center text-sm text-gray-500 hover:border-blue-400 hover:bg-blue-50/40 transition"
+              >
+                <Upload className="inline-block w-4 h-4 mr-2" />
+                {t("docente_doc_files_pick")}
+                <span className="block text-xs text-gray-400 mt-1">.pdf · .txt · .docx · .md</span>
+              </label>
+              {docFiles.length > 0 && (
+                <ul className="flex flex-col gap-1 mt-1 max-h-32 overflow-y-auto">
+                  {docFiles.map((f, idx) => (
+                    <li
+                      key={`${f.name}-${idx}`}
+                      className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-xs"
+                    >
+                      <span className="truncate text-gray-700">{f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDocFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="ml-2 text-gray-400 hover:text-red-600"
+                        aria-label={t("docente_doc_files_remove")}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDocDialogOpen(false)}
+                disabled={uploadingDocs}
+              >
+                {t("cancel")}
+              </Button>
+              <Button type="submit" disabled={uploadingDocs || docFiles.length === 0}>
+                {uploadingDocs ? t("loading") : t("docente_doc_submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={addDialogOpen}

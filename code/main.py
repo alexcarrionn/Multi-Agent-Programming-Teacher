@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from fastapi import Depends, FastAPI, HTTPException, Response, UploadFile, File
+from fastapi import Depends, FastAPI, Form, HTTPException, Response, UploadFile, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from watchfiles  import watch, Change
@@ -299,6 +299,18 @@ class AlumnoDetalleResponse(BaseModel):
     nombre: str
     email: str
     nivel: str | None
+
+class DocumentoItem(BaseModel):
+    nombre: str
+    tipo: str  # "teoria" o "practicas"
+
+class DocumentosListResponse(BaseModel):
+    documentos: list[DocumentoItem]
+
+class DocumentosUploadResponse(BaseModel):
+    insertados: int
+    fallos: list[str]
+    message: str
 
 # --- Endpoints de autenticación ---
 
@@ -1091,3 +1103,137 @@ def listar_asignaturas_alumno(current_user: dict = Depends(get_current_user)):
         {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion}
         for a in asignaturas
     ]}
+
+
+# --- Helpers para gestion de documentacion del RAG ---
+TIPOS_DOC_VALIDOS = {"teoria", "practicas"}
+
+def _resolver_asignatura_del_docente(asignatura_id: int, docente_id: int):
+    """Devuelve la asignatura si pertenece al docente; lanza 403 si no."""
+    asignaturas = get_asignaturas_por_docente(docente_id)
+    asignatura = next((a for a in asignaturas if a.id == asignatura_id), None)
+    if asignatura is None:
+        raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    return asignatura
+
+def _slug_asignatura(nombre: str) -> str:
+    return nombre.lower().replace(" ", "_")
+
+
+#Endpoint para subir documentacion del RAG (uno o varios archivos)
+@app.post(
+    "/api/docente/asignaturas/{asignatura_id}/documentos",
+    summary="Subir documentacion al agente",
+    description="Sube uno o varios archivos (.pdf, .txt, .docx, .md) al RAG de la asignatura. tipo debe ser 'teoria' o 'practicas'.",
+    response_model=DocumentosUploadResponse,
+    tags=["docente"],
+    responses={
+        400: {"description": "Tipo invalido o archivo con formato no soportado"},
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado para esta asignatura"},
+    }
+)
+async def subir_documentos_endpoint(
+    asignatura_id: int,
+    tipo: str = Form(...),
+    files: list[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_docente),
+):
+    asignatura = _resolver_asignatura_del_docente(asignatura_id, current_user["docente_id"])
+    if tipo not in TIPOS_DOC_VALIDOS:
+        raise HTTPException(status_code=400, detail=_("INVALID DOCUMENT TYPE"))
+
+    slug = _slug_asignatura(asignatura.nombre)
+    target_dir = DATA_ROOT / slug / tipo
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    # El watcher (observar_cambios_documentacion) detectara el archivo nuevo
+    # y lanzara indexar_documentos de forma asincrona. El endpoint solo escribe
+    # a disco para no bloquear la respuesta con el indexado de Qdrant.
+    insertados = 0
+    fallos: list[str] = []
+    for f in files:
+        if not f.filename:
+            continue
+        ext = Path(f.filename).suffix.lower()
+        if ext not in SUPPORTED_FORMATS:
+            fallos.append(f.filename)
+            continue
+        target_path = target_dir / f.filename
+        try:
+            content = await f.read()
+            target_path.write_bytes(content)
+            insertados += 1
+        except Exception as e:
+            fallos.append(f.filename)
+            print(f"Error escribiendo {f.filename}: {e}")
+
+    return {
+        "insertados": insertados,
+        "fallos": fallos,
+        "message": _("DOCUMENTS UPLOADED"),
+    }
+
+
+#Endpoint para listar la documentacion subida a una asignatura
+@app.get(
+    "/api/docente/asignaturas/{asignatura_id}/documentos",
+    summary="Listar documentacion del agente",
+    description="Lista los archivos en data/<slug>/teoria/ y data/<slug>/practicas/.",
+    response_model=DocumentosListResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado para esta asignatura"},
+    }
+)
+def listar_documentos_endpoint(asignatura_id: int, current_user: dict = Depends(get_current_docente)):
+    asignatura = _resolver_asignatura_del_docente(asignatura_id, current_user["docente_id"])
+    slug = _slug_asignatura(asignatura.nombre)
+    documentos: list[dict] = []
+    for tipo in TIPOS_DOC_VALIDOS:
+        carpeta = DATA_ROOT / slug / tipo
+        if not carpeta.is_dir():
+            continue
+        for archivo in sorted(carpeta.iterdir()):
+            if archivo.is_file() and archivo.suffix.lower() in SUPPORTED_FORMATS:
+                documentos.append({"nombre": archivo.name, "tipo": tipo})
+    return {"documentos": documentos}
+
+
+#Endpoint para eliminar un documento del RAG
+@app.delete(
+    "/api/docente/asignaturas/{asignatura_id}/documentos",
+    summary="Eliminar documentacion del agente",
+    description="Borra el archivo del disco. El watcher (observar_cambios_documentacion) detectara el Change.deleted y borrara los puntos de Qdrant.",
+    response_model=MessageResponse,
+    tags=["docente"],
+    responses={
+        400: {"description": "Tipo invalido"},
+        401: {"description": "No autenticado"},
+        403: {"description": "No autorizado para esta asignatura"},
+        404: {"description": "Documento no encontrado"},
+    }
+)
+def eliminar_documento_endpoint(
+    asignatura_id: int,
+    tipo: str,
+    nombre: str,
+    current_user: dict = Depends(get_current_docente),
+):
+    asignatura = _resolver_asignatura_del_docente(asignatura_id, current_user["docente_id"])
+    if tipo not in TIPOS_DOC_VALIDOS:
+        raise HTTPException(status_code=400, detail=_("INVALID DOCUMENT TYPE"))
+
+    slug = _slug_asignatura(asignatura.nombre)
+    target_path = DATA_ROOT / slug / tipo / nombre
+    if not target_path.is_file():
+        raise HTTPException(status_code=404, detail=_("DOCUMENT NOT FOUND"))
+
+    # Solo borramos del disco. El watcher detectara el Change.deleted y se ocupara
+    # de eliminar los puntos de Qdrant.
+    try:
+        target_path.unlink()
+        return {"message": _("DOCUMENT DELETED")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
