@@ -902,15 +902,16 @@ def listar_alumnos_autorizados(asignatura_id: int, current_user: dict = Depends(
     response_model=AlumnoAutorizadoItem,
     tags=["docente"],
     responses={
-        400: {"description": "Correo ya autorizado u otros datos invalidos"},
-        401: {"description": "No autenticado"},
-        403: {"description": "No autorizado para esta asignatura"},
+        400: {"description": "Correo invalido"},
+        403: {"description": "No autorizado para esta asignatura"}
     }
 )
 def crear_alumno_autorizado_endpoint(asignatura_id: int, datos: AlumnoAutorizadoCreate, current_user: dict = Depends(get_current_docente)):
     asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
     if not any(a.id == asignatura_id for a in asignaturas_docente):
         raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    if(not datos.correo.endswith("@um.es")):
+        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
     try:
         nuevo = crear_alumno_autorizado(asignatura_id, datos.nombre, datos.correo, datos.dni)
         return {

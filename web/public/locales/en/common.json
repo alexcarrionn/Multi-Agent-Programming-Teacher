@@ -125,7 +125,16 @@
   "docente_alumno_delete_confirm": "Are you sure you want to remove {{nombre}} from this subject?",
   "docente_alumno_delete_success_title": "Student removed",
   "docente_alumno_delete_success_msg": "The student has been removed from the subject.",
-  "docente_upload_excel_button": "Upload Excel",
+  "docente_upload_excel_button": "Upload Excel with Students",
+  "docente_upload_student": "Add student",
   "docente_import_success_title": "Import completed",
-  "docente_import_success_msg": "Inserted: {{insertados}} students in the subject. The Excel file has been processed successfully."
+  "docente_import_success_msg": "Inserted: {{insertados}} students in the subject. The Excel file has been processed successfully.",
+  "docente_add_student_dialog_title": "Add student to subject",
+  "docente_add_student_dialog_desc": "Authorize a student individually. If they already have a Codi account, they will be enrolled automatically; otherwise, they will be able to register with their email.",
+  "docente_add_student_name_label": "Full name",
+  "docente_add_student_email_label": "Email",
+  "docente_add_student_dni_label": "ID (optional)",
+  "docente_add_student_submit": "Add student",
+  "docente_add_student_success_title": "Student added",
+  "docente_add_student_success_msg": "{{correo}} has been authorized for this subject."
 }

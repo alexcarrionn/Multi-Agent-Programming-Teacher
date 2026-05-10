@@ -560,7 +560,7 @@ def import_alumnos_autorizados_excel(asignatura_id: int, df) -> int:
                 session.add(nuevo)
                 insertador += 1
 
-            # Si el alumno ya tiene cuenta en Codi y no esta anonimizado, matricular en la asignatura
+            # Si el alumno ya tiene cuenta en registrada y no esta anonimizado, matricular en la asignatura
             alumno = session.query(Alumno).filter(
                 Alumno.email == correo,
                 Alumno.anonimizado == False
@@ -592,18 +592,37 @@ def crear_alumno_autorizado(asignatura_id: int, nombre: str, correo: str, dni: s
               AlumnoAulaAsignatura.correo == correo,
           ).first()
           if existing is not None:
-              raise ValueError(_("ALUMNO ALREADY AUTHORIZED"))
+              existing.nombre = nombre
+              existing.dni = dni
+              resultado = existing
+          else: 
+                nuevo = AlumnoAulaAsignatura(
+                    asignatura_id=asignatura_id,
+                    nombre=nombre,
+                    correo=correo,
+                    dni=dni,
+                )
+                session.add(nuevo)
+                resultado = nuevo
 
-          nuevo = AlumnoAulaAsignatura(
-              asignatura_id=asignatura_id,
-              nombre=nombre,
-              correo=correo,
-              dni=dni,
-          )
-          session.add(nuevo)
+            #Si el alumno ya tiene una cuenta registrada y no esta anonimizado, lo matriculamos en la asignatura
+          alumno = session.query(Alumno).filter(
+              Alumno.email == correo,
+              Alumno.anonimizado == False
+            ).first()
+          if alumno is not None: 
+                ya_matriculado = session.query(AlumnoAsignatura).filter(
+                    AlumnoAsignatura.alumno_id == alumno.id,
+                    AlumnoAsignatura.asignatura_id == asignatura_id
+                ).first()
+                if ya_matriculado is None:
+                    session.add(AlumnoAsignatura(
+                        alumno_id=alumno.id,
+                        asignatura_id=asignatura_id
+                    ))
           session.commit()
-          session.refresh(nuevo)
-          return nuevo
+          session.refresh(resultado)
+          return resultado
       except Exception:
           session.rollback()
           raise
@@ -690,8 +709,6 @@ def eliminar_alumno_de_asignatura(alumno_id: int, asignatura_id: int):
 
         session.delete(matricula)
 
-        # Tambien eliminamos su autorizacion para que un re-import del Excel
-        # no le vuelva a matricular automaticamente.
         alumno = session.query(Alumno).filter(Alumno.id == alumno_id).first()
         if alumno is not None:
             autorizado = session.query(AlumnoAulaAsignatura).filter(

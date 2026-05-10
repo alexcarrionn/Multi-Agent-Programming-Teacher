@@ -18,6 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/app/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
 
 export default function AsignaturaPage() {
   const { id } = useParams();
@@ -30,6 +38,12 @@ export default function AsignaturaPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [newNombre, setNewNombre] = useState("");
+  const [newCorreo, setNewCorreo] = useState("");
+  const [newDni, setNewDni] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const getErrorMessage = (err) => {
     if (axios.isAxiosError(err)) {
@@ -79,6 +93,39 @@ export default function AsignaturaPage() {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const resetAddDialog = () => {
+    setNewNombre("");
+    setNewCorreo("");
+    setNewDni("");
+  };
+
+  const handleCrearAlumnoAutorizado = async (e) => {
+    e.preventDefault();
+    const nombre = newNombre.trim();
+    const correo = newCorreo.trim();
+    const dni = newDni.trim();
+    if (!nombre || !correo) return;
+    setCreating(true);
+    try {
+      await axios.post(
+        `/backend/api/docente/asignaturas/${id}/alumnos-autorizados`,
+        { nombre, correo, dni: dni || null },
+        { withCredentials: true }
+      );
+      sileo.success({
+        title: t("docente_add_student_success_title"),
+        description: t("docente_add_student_success_msg", { correo }),
+      });
+      setAddDialogOpen(false);
+      resetAddDialog();
+      await fetchAlumnos();
+    } catch (err) {
+      sileo.error({ title: t("error"), description: getErrorMessage(err) });
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleFileChange = async (e) => {
@@ -172,9 +219,19 @@ export default function AsignaturaPage() {
                     {t("docente_subject_code")}: <span className="font-mono">{asignatura.codigo}</span>
                   </p>
                 </div>
-                <Button onClick={handleUploadClick} disabled={uploading}>
-                  <Upload /> {uploading ? t("loading") : t("docente_upload_excel_button")}
-                </Button>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setAddDialogOpen(true)}
+                    disabled={uploading || creating}
+                  >
+                    {t("docente_upload_student")}
+                  </Button>
+                  <Button onClick={handleUploadClick} disabled={uploading}>
+                    <Upload /> {uploading ? t("loading") : t("docente_upload_excel_button")}
+                  </Button>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -238,6 +295,66 @@ export default function AsignaturaPage() {
           </>
         ) : null}
       </section>
+
+      <Dialog
+        open={addDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (!open) resetAddDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("docente_add_student_dialog_title")}</DialogTitle>
+            <DialogDescription>{t("docente_add_student_dialog_desc")}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCrearAlumnoAutorizado} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">{t("docente_add_student_name_label")}</span>
+              <input
+                type="text"
+                value={newNombre}
+                onChange={(e) => setNewNombre(e.target.value)}
+                required
+                autoFocus
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">{t("docente_add_student_email_label")}</span>
+              <input
+                type="email"
+                value={newCorreo}
+                onChange={(e) => setNewCorreo(e.target.value)}
+                required
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">{t("docente_add_student_dni_label")}</span>
+              <input
+                type="text"
+                value={newDni}
+                onChange={(e) => setNewDni(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </label>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAddDialogOpen(false)}
+                disabled={creating}
+              >
+                {t("cancel")}
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? t("loading") : t("docente_add_student_submit")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
