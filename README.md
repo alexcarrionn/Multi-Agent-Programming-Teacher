@@ -30,15 +30,20 @@
   - **Evaluador**: corrige ejercicios del alumno usando rúbricas.
   - **Crítico**: da retroalimentación detallada sobre el código entregado.
 - **RAG (Retrieval-Augmented Generation)**: recupera materiales del curso (PDFs, DOCs, etc.) antes de responder, para que los agentes tengan contexto de la asignatura.
-- **Selección de asignatura por el alumno**: el alumno elige la asignatura activa desde el header; el RAG filtra por la colección correspondiente de Qdrant.
+- **Selección dinámica de asignatura por el alumno**: el header carga del backend las asignaturas en las que el alumno está matriculado (no son slugs hardcoded). Al cambiar, el RAG filtra por la colección correspondiente de Qdrant.
 - **Detección y adaptación de nivel**: el sistema detecta automáticamente el nivel del alumno (principiante → intermedio → avanzado) y adapta las respuestas.
 - **Memoria de conversación**: cada alumno tiene sus propios hilos de conversación persistentes (LangGraph `MemorySaver`).
 - **Streaming en tiempo real**: las respuestas se envían por SSE (Server-Sent Events).
 - **Roles diferenciados**: alumno y docente con autenticación, JWT y endpoints separados.
-- **Panel del docente**: alta de asignaturas, gestión de alumnos autorizados (CRUD + import Excel), consulta de progreso e interacciones de cada alumno.
-- **Auto-matrícula**: al registrarse un alumno, queda matriculado automáticamente en todas las asignaturas donde su correo aparezca como autorizado.
+- **Panel del docente**:
+  - Alta de asignaturas y unión a asignaturas existentes con código de invitación.
+  - Gestión de alumnos autorizados (CRUD + import Excel + alta individual con auto-matrícula si ya tienen cuenta).
+  - Eliminar alumnos de la asignatura.
+  - **Ficha del alumno** con su progreso académico e interacciones, **filtrables por asignatura** (cada `Progreso` y `Interaccion` lleva `asignatura_id` como FK).
+  - **Gestión de documentación del RAG**: subir/listar/eliminar archivos por asignatura desde la UI, separados por tipo (teoría / prácticas).
+- **Auto-matrícula**: al registrar a un alumno a través del Excel o al autorizarlo individualmente, queda matriculado automáticamente en las asignaturas donde su correo aparezca como autorizado.
 - **Recuperación de contraseña por email** vía Brevo SMTP, con tokens temporales.
-- **Recarga en caliente** de los documentos del curso: cualquier cambio en `/code/data/` se indexa sin reiniciar.
+- **Recarga en caliente** de los documentos del curso: cualquier cambio en `/code/data/` se indexa sin reiniciar (vía `watchfiles`). El upload/delete desde el panel docente confía en este watcher para indexar de forma asíncrona y evitar timeouts.
 - **Multiidioma**:
   - Backend: detección automática del idioma del alumno (es/en) y traducción de mensajes con gettext.
   - Frontend: selector manual de idioma en el header (react-i18next) con traducciones en `web/public/locales/{es,en}/common.json`.
@@ -69,12 +74,14 @@ FastAPI (main.py)
 
 **Flujo de un mensaje**:
 
-1. El alumno envía un mensaje al endpoint `/api/chat` indicando la asignatura activa.
+1. El alumno envía un mensaje al endpoint `/api/chat` indicando la asignatura activa (slug).
 2. El supervisor analiza el mensaje y decide qué agente debe responder. Antes de delegar, valida que la pregunta esté en el ámbito de la asignatura mediante una consulta RAG.
 3. El nodo RAG recupera fragmentos relevantes del material desde la colección Qdrant correspondiente a esa asignatura.
 4. El agente seleccionado genera la respuesta con ese contexto.
-5. Si es una evaluación, el Crítico añade retroalimentación y se guarda el progreso en MySQL.
-6. La interacción completa se almacena en `interacciones` para el historial del alumno y la consulta del docente.
+5. Si es una evaluación, el Crítico añade retroalimentación y se guarda el progreso en MySQL (junto al `asignatura_id` resuelto desde el slug).
+6. La interacción completa se almacena en `interacciones` (también con `asignatura_id`) para el historial del alumno y la consulta del docente filtrada por asignatura.
+
+**Convención del slug**: la asignatura viaja por el sistema como un slug calculado con `nombre.lower().replace(' ', '_')`. Lo aplican coherentemente: el frontend del alumno (`header.jsx`), la creación de carpetas en `data/<slug>/`, las funciones de guardado (`guardar_progreso`, `guardar_interaccion`) que resuelven el `asignatura_id` desde el slug, y los endpoints del docente que escriben/leen documentos en `data/<slug>/<tipo>/`.
 
 ---
 
@@ -183,8 +190,6 @@ LANGSMITH_API_KEY=tu_langsmith_api_key
 LANGSMITH_PROJECT=mi-proyecto
 ```
 
-> **Nota**: no subas nunca el `.env` al repositorio. Ya está incluido en `.gitignore`.
-
 ---
 
 ## Ejecutar el proyecto
@@ -193,7 +198,7 @@ LANGSMITH_PROJECT=mi-proyecto
 
 ```bash
 cd code
-uvicorn main:app --reload
+uvicorn main:app
 ```
 
 El servidor arranca en `http://localhost:8000` y al inicio:
@@ -251,10 +256,9 @@ Multi-Agent-Programming-Teacher/
 │   ├── config/                        # Settings desde .env
 │   ├── auth/                          # JWT y autenticación
 │   ├── data/                          # Materiales del curso (no incluidos en git)
-│   │   ├── <asignatura>/
-│   │   │   ├── teoria/
-│   │   │   ├── practicas/
-│   │   │   └── ejercicios/
+│   │   ├── <slug_asignatura>/         # se crea automaticamente al crear la asignatura
+│   │   │   ├── teoria/                # docs subidos desde el panel del docente, tipo "teoria"
+│   │   │   └── practicas/             # docs subidos desde el panel del docente, tipo "practicas"
 │   │   └── docentes_autorizados.xlsx  # Lista de docentes autorizados a registrarse
 │   └── locales/                       # Traducciones gettext (es, en)
 │
@@ -311,8 +315,8 @@ alumnos_asignaturas      docentes_asignaturas
 | `docentes_asignaturas` | Relación N:M docente ↔ asignatura |
 | `alumnos_asignaturas` | Matrícula real (alumno ↔ asignatura) |
 | `alumnos_aula_asignatura` | Lista de correos autorizados a registrarse en cada asignatura (la gestiona el docente) |
-| `progresos` | Historial de evaluaciones del alumno |
-| `interacciones` | Historial completo de mensajes del chat |
+| `progresos` | Historial de evaluaciones del alumno. Cada fila lleva `asignatura_id` (FK, nullable) para filtrar por asignatura |
+| `interacciones` | Historial completo de mensajes del chat. Cada fila lleva `asignatura_id` (FK, nullable) para filtrar por asignatura |
 
 **Flujo de matrícula**:
 
@@ -338,11 +342,12 @@ El sistema diferencia dos roles mediante un campo `rol` en el JWT.
 - Se registra en `/auth/docente/register` con un correo `@um.es` que figure en `docentes_autorizados.xlsx`.
 - Hace login en `/auth/docente/login`.
 - Accede al panel del docente con las siguientes capacidades:
-  - **Asignaturas**: crear y listar las que imparte.
-  - **Alumnos autorizados**: importar Excel, añadir, editar, borrar.
-  - **Alumnos matriculados**: listar quienes ya tienen cuenta y están matriculados.
-  - **Matricular manualmente** un alumno existente.
-  - **Consultar progreso e interacciones** de cualquier alumno matriculado en sus asignaturas.
+  - **Asignaturas**: crear nuevas, listar las que imparte, unirse a una existente vía código de invitación.
+  - **Vista de asignatura** (`/docente/asignaturas/[id]`): cabecera con código + acciones (añadir alumno, importar Excel, añadir documentación) + tabla de alumnos matriculados + tabla de documentación del agente.
+  - **Alumnos autorizados**: importar Excel (UPSERT), añadir uno individualmente con auto-matrícula si ya tiene cuenta, editar, borrar.
+  - **Alumnos matriculados**: listar quienes ya tienen cuenta y están matriculados; eliminarlos de la asignatura.
+  - **Ficha del alumno** (`/docente/alumnos/[id]`): consultar progreso académico e interacciones del alumno, **filtrados automáticamente por la asignatura** desde la que se accedió.
+  - **Documentación del RAG por asignatura**: subir uno o varios archivos (.pdf, .txt, .docx, .md), elegir tipo (teoría / prácticas), listar los ya subidos y eliminarlos. El indexado en Qdrant se hace asíncrono vía el watcher.
 - La autorización se valida en cada endpoint: un docente solo puede ver/modificar lo que pertenece a sus asignaturas.
 
 ---
@@ -351,18 +356,18 @@ El sistema diferencia dos roles mediante un campo `rol` en el JWT.
 
 ### Añadir materiales del curso
 
-Coloca los archivos en `/code/data/<codigo_asignatura>/` en la subcarpeta correspondiente. El `<codigo_asignatura>` debe coincidir con el `codigo` de la asignatura en BD y con el nombre de la colección de Qdrant.
+**Forma recomendada — desde el panel del docente**: en `/docente/asignaturas/[id]`, botón **"Añadir documentación al agente"**. Se eligen uno o varios archivos y el tipo (teoría o prácticas). El backend solo escribe los archivos a disco; el watcher los detecta y los indexa en Qdrant en segundo plano (10–20 s para PDFs grandes). Para borrar, papelera junto a cada archivo en la tabla.
+
+**Forma alternativa — vía filesystem**: copia archivos directamente a `/code/data/<slug>/teoria/` o `/code/data/<slug>/practicas/`. El `<slug>` se genera con `nombre.lower().replace(' ', '_')` y la carpeta ya existe (se crea al crear la asignatura). El watcher hace el resto.
 
 | Carpeta | Contenido |
 |---|---|
-| `teoria/` | Apuntes y diapositivas teóricas |
-| `practicas/` | Guiones de prácticas |
-| `ejercicios/` | Enunciados de ejercicios |
-| `rubricas/` | Rúbricas de evaluación |
+| `teoria/` | Apuntes, diapositivas, material teórico |
+| `practicas/` | Guiones de prácticas, ejercicios, rúbricas |
 
 **Formatos soportados**: PDF, DOCX, TXT, MD.
 
-El watcher detecta los cambios automáticamente y los indexa en Qdrant sin necesidad de reiniciar el servidor.
+> El watcher (`observar_cambios_documentacion`) usa `watchfiles` y reacciona a `Change.added/modified/deleted` indexando o eliminando puntos en Qdrant. **No reinicies el servidor** después de cambiar un archivo: ya se ocupa el watcher.
 
 ### Gestionar docentes autorizados
 
@@ -417,27 +422,40 @@ Los alumnos se gestionan **desde el panel del docente** (no desde el filesystem)
 | `POST` | `/api/chat` | Enviar mensaje (respuesta SSE en streaming) |
 | `GET` | `/api/interacciones` | Historial completo del alumno autenticado |
 | `GET` | `/api/asignaturas` | Listar asignaturas disponibles (carpetas en `/data`) |
+| `GET` | `/api/me/asignaturas` | Asignaturas en las que el alumno autenticado está matriculado (lo usa el header dinámico) |
 
 ### Panel del docente — asignaturas y alumnos
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/docente/asignaturas` | Crear asignatura |
+| `POST` | `/api/docente/asignaturas` | Crear asignatura (también crea `data/<slug>/teoria/` y `practicas/`) |
 | `GET` | `/api/docente/asignaturas` | Listar asignaturas que imparte el docente |
+| `GET` | `/api/docente/asignaturas/{id}` | Datos de una asignatura concreta del docente |
+| `POST` | `/api/docente/unirse-asignatura` | Unirse a una asignatura existente con código de invitación |
 | `GET` | `/api/docente/asignaturas/{id}/alumnos` | Alumnos matriculados (con cuenta) |
 | `POST` | `/api/docente/asignaturas/{id}/matricular` | Matricular un alumno por email |
-| `GET` | `/api/docente/alumnos/{id}/progreso` | Historial de evaluaciones del alumno |
-| `GET` | `/api/docente/alumnos/{id}/interacciones` | Historial de chat del alumno |
+| `DELETE` | `/api/docente/asignaturas/{id}/alumnos/{alumno_id}` | Eliminar alumno de la asignatura (matrícula + autorización) |
+| `GET` | `/api/docente/alumnos/{id}` | Datos básicos del alumno (id, nombre, email, nivel) |
+| `GET` | `/api/docente/alumnos/{id}/progreso?asignatura_id=N` | Historial de evaluaciones del alumno; `asignatura_id` filtra opcionalmente |
+| `GET` | `/api/docente/alumnos/{id}/interacciones?asignatura_id=N` | Historial de chat del alumno; `asignatura_id` filtra opcionalmente |
 
 ### Panel del docente — alumnos autorizados
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/docente/asignaturas/{id}/import-alumnos` | Importar Excel (UPSERT) |
+| `POST` | `/api/docente/asignaturas/{id}/import-alumnos` | Importar Excel (UPSERT + auto-matrícula si ya tienen cuenta) |
 | `GET` | `/api/docente/asignaturas/{id}/alumnos-autorizados` | Listar autorizados |
-| `POST` | `/api/docente/asignaturas/{id}/alumnos-autorizados` | Añadir uno manualmente |
+| `POST` | `/api/docente/asignaturas/{id}/alumnos-autorizados` | Añadir uno manualmente (UPSERT + auto-matrícula si ya tiene cuenta) |
 | `PUT` | `/api/docente/alumnos-autorizados/{id}` | Editar |
 | `DELETE` | `/api/docente/alumnos-autorizados/{id}` | Eliminar |
+
+### Panel del docente — documentación del RAG
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/docente/asignaturas/{id}/documentos` | Subir uno o varios archivos. Body: `tipo` (teoria/practicas) + `files`. Solo escribe a disco; el watcher indexa en Qdrant |
+| `GET` | `/api/docente/asignaturas/{id}/documentos` | Listar archivos en `data/<slug>/teoria/` y `practicas/` |
+| `DELETE` | `/api/docente/asignaturas/{id}/documentos?tipo=X&nombre=Y` | Borrar archivo del disco; el watcher se ocupa de Qdrant |
 
 > Toda la documentación detallada de cada endpoint (parámetros, respuestas, códigos de error) está disponible en Swagger UI: `http://localhost:8000/docs`.
 
