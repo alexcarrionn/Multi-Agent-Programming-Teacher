@@ -136,5 +136,17 @@
   "docente_add_student_dni_label": "ID (optional)",
   "docente_add_student_submit": "Add student",
   "docente_add_student_success_title": "Student added",
-  "docente_add_student_success_msg": "{{correo}} has been authorized for this subject."
+  "docente_add_student_success_msg": "{{correo}} has been authorized for this subject.",
+  "docente_alumno_not_accessible": "You don't have access to this student.",
+  "docente_alumno_nivel": "Level",
+  "docente_alumno_progreso_title": "Academic progress",
+  "docente_alumno_progreso_empty": "This student has no evaluations yet.",
+  "docente_alumno_progreso_col_enunciado": "Statement",
+  "docente_alumno_progreso_col_puntuacion": "Score",
+  "docente_alumno_progreso_col_ambito": "Topic",
+  "docente_alumno_progreso_col_fecha": "Date",
+  "docente_alumno_interacciones_title": "Interactions",
+  "docente_alumno_interacciones_empty": "This student hasn't interacted with Codi yet.",
+  "docente_alumno_interacciones_user": "Student message",
+  "docente_alumno_interacciones_agent": "Codi's response"
 }

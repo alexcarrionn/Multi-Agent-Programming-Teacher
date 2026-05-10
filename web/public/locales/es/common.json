@@ -136,5 +136,17 @@
   "docente_add_student_dni_label": "DNI (opcional)",
   "docente_add_student_submit": "Añadir alumno",
   "docente_add_student_success_title": "Alumno añadido",
-  "docente_add_student_success_msg": "{{correo}} ha sido autorizado en la asignatura."
+  "docente_add_student_success_msg": "{{correo}} ha sido autorizado en la asignatura.",
+  "docente_alumno_not_accessible": "No tienes acceso a este alumno.",
+  "docente_alumno_nivel": "Nivel",
+  "docente_alumno_progreso_title": "Progreso académico",
+  "docente_alumno_progreso_empty": "Este alumno aún no tiene evaluaciones registradas.",
+  "docente_alumno_progreso_col_enunciado": "Enunciado",
+  "docente_alumno_progreso_col_puntuacion": "Puntuación",
+  "docente_alumno_progreso_col_ambito": "Ámbito",
+  "docente_alumno_progreso_col_fecha": "Fecha",
+  "docente_alumno_interacciones_title": "Interacciones",
+  "docente_alumno_interacciones_empty": "Este alumno aún no ha interactuado con Codi.",
+  "docente_alumno_interacciones_user": "Mensaje del alumno",
+  "docente_alumno_interacciones_agent": "Respuesta de Codi"
 }

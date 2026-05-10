@@ -23,8 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from auth.auth import create_access_token, get_current_user, get_current_docente
 from database.repository import (
-    crear_asignatura, 
-    get_asignaturas_por_docente, 
+    crear_asignatura,
+    get_alumno_by_id,
+    get_asignaturas_por_alumno,
+    get_asignaturas_por_docente,
     get_alumnos_por_asignatura,
     matricular_alumno_en_asignatura,
     get_progreso_alumno,
@@ -291,6 +293,12 @@ class AlumnosAutorizadosListResponse(BaseModel):
 class ImportResultResponse(BaseModel):
     insertados: int
     message: str
+
+class AlumnoDetalleResponse(BaseModel):
+    id: int
+    nombre: str
+    email: str
+    nivel: str | None
 
 # --- Endpoints de autenticación ---
 
@@ -774,7 +782,7 @@ def matricular_alumno_endpoint(asignatura_id: int, datos: MatricularRequest, cur
         403: {"description": "El alumno no esta matriculado en ninguna asignatura del docente"},
     }
 )
-def obtener_progreso_academico(alumno_id: int, current_user: dict = Depends(get_current_docente)):
+def obtener_progreso_academico(alumno_id: int, asignatura_id: int | None = None, current_user: dict = Depends(get_current_docente)):
     #comprobamos que el alumno esta matriculado en alguna asignatura del docente actual
     asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
     alumno_matriculado = any(
@@ -783,7 +791,7 @@ def obtener_progreso_academico(alumno_id: int, current_user: dict = Depends(get_
     )
     if not alumno_matriculado:
         raise HTTPException(status_code=403, detail=_("ACCESS TO STUDENT PROGRESS DENIED"))
-    progreso = get_progreso_alumno(alumno_id)
+    progreso = get_progreso_alumno(alumno_id, asignatura_id=asignatura_id)
     return {"progreso": [
         {
             "enunciado": p.enunciado_ejercicio,
@@ -809,7 +817,7 @@ def obtener_progreso_academico(alumno_id: int, current_user: dict = Depends(get_
         500: {"description": "Error interno al obtener las interacciones"},
     }
 )
-def obtener_interacciones_docente(alumno_id: int, current_user: dict = Depends(get_current_docente)):
+def obtener_interacciones_docente(alumno_id: int,asignatura_id: int | None = None,current_user: dict = Depends(get_current_docente),):
     #comprobamos que el alumno esta matriculado en alguna asignatura del docente actual
     asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
     alumno_matriculado = any(
@@ -819,7 +827,7 @@ def obtener_interacciones_docente(alumno_id: int, current_user: dict = Depends(g
     if not alumno_matriculado:
         raise HTTPException(status_code=403, detail=_("ACCESS TO STUDENT INTERACTIONS DENIED"))
     try:
-        interacciones = get_interacciones(alumno_id)
+        interacciones = get_interacciones(alumno_id, asignatura_id=asignatura_id)
         return {"interacciones": [
             {
                 "mensaje_usuario": i.mensaje_usuario,
@@ -1038,3 +1046,48 @@ def eliminar_alumno_endpoint(asignatura_id: int, alumno_id: int, current_user: d
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+#Endpoint para obtener los datos basicos de un alumno
+@app.get(
+    "/api/docente/alumnos/{alumno_id}",
+    summary="Obtener datos del alumno",
+    description="Devuelve los datos basicos de un alumno (id, nombre, email, nivel) si esta matriculado en alguna asignatura del docente.",
+    response_model=AlumnoDetalleResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "El alumno no esta matriculado en ninguna asignatura del docente"},
+        404: {"description": "Alumno no encontrado"},
+    }
+)
+def obtener_alumno(alumno_id: int, current_user: dict = Depends(get_current_docente)):
+    #comprobamos que el alumno esta matriculado en alguna asignatura del docente actual
+    asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+    alumno_matriculado = any(
+        alumno_id in [a.id for a in get_alumnos_por_asignatura(asignatura.id)]
+        for asignatura in asignaturas_docente
+    )
+    if not alumno_matriculado:
+        raise HTTPException(status_code=403, detail=_("ACCESS TO STUDENT PROGRESS DENIED"))
+    alumno = get_alumno_by_id(alumno_id)
+    if alumno is None:
+        raise HTTPException(status_code=404, detail=_("ALUMNO NOT FOUND"))
+    return {"id": alumno.id, "nombre": alumno.nombre, "email": alumno.email, "nivel": alumno.nivel}
+
+#Endpoint para que el alumno autenticado obtenga sus asignaturas matriculadas
+@app.get(
+    "/api/me/asignaturas",
+    summary="Listar asignaturas del alumno",
+    description="Devuelve las asignaturas en las que el alumno autenticado esta matriculado.",
+    response_model=AsignaturasListResponse,
+    tags=["chat"],
+    responses={
+        401: {"description": "No autenticado"},
+    }
+)
+def listar_asignaturas_alumno(current_user: dict = Depends(get_current_user)):
+    asignaturas = get_asignaturas_por_alumno(current_user["alumno_id"])
+    return {"asignaturas": [
+        {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion}
+        for a in asignaturas
+    ]}

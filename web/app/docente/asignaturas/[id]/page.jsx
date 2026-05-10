@@ -262,7 +262,7 @@ export default function AsignaturaPage() {
                         <TableRow
                           key={a.id}
                           className="cursor-pointer"
-                          onClick={() => router.push(`/docente/alumnos/${a.id}`)}
+                          onClick={() => router.push(`/docente/alumnos/${a.id}?asignatura_id=${id}`)}
                         >
                           <TableCell className="font-medium">{a.nombre}</TableCell>
                           <TableCell className="text-gray-600">{a.email}</TableCell>

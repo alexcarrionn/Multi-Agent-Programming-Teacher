@@ -46,6 +46,7 @@ class Progreso(Base):
     retroalimentacion_ejercicio = Column(longText, nullable=True)
     fecha_evaluacion = Column(DateTime, nullable=True)
     ambito_dificultad = Column(String(255), nullable=True)
+    asignatura_id = Column(Integer, ForeignKey('asignaturas.id'), nullable=True)  # Para identificar a qué asignatura se refiere el progreso
  
     alumno = relationship("Alumno", back_populates="progreso")
 
@@ -75,7 +76,7 @@ class Interaccion(Base):
     respuesta_agente = Column(longText, nullable=True)
     fecha_interaccion = Column(DateTime, nullable=True)
     tipo_interaccion = Column(String(50), nullable=True)  # Por ejemplo: "consulta", "retroalimentación", etc.
-    asignatura = Column(String(100), nullable=True)  # Para identificar a qué asignatura se refiere la interacción
+    asignatura_id = Column(Integer, ForeignKey('asignaturas.id'), nullable=True)  # Para identificar a qué asignatura se refiere la interacción
 
     alumno = relationship("Alumno", back_populates="interacciones")
 

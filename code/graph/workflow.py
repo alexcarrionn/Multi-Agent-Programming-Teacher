@@ -57,6 +57,7 @@ def nodo_guardar_progreso(state):
     puntuacion = state.get("puntuacion")
     feedback = state.get("feedback")
     ambito_dificultad = state.get("user_level")
+    asignatura = state.get("asignatura")
 
     if alumno_id:
         guardar_progreso(
@@ -65,7 +66,8 @@ def nodo_guardar_progreso(state):
             codigo_alumno=codigo_alumno,
             puntuacion_ejercicio=puntuacion,
             retroalimentacion_ejercicio=feedback,
-            ambito_dificultad=ambito_dificultad
+            ambito_dificultad=ambito_dificultad,
+            asignatura=asignatura
         )
     return {}
 

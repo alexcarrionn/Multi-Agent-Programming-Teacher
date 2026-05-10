@@ -99,6 +99,15 @@ def get_alumno_by_email(email: str) -> Alumno | None:
     finally:
         session.close()
 
+#Definimos una funcion para obtener un alumno por su id
+def get_alumno_by_id(alumno_id: int) -> Alumno | None:
+    """Busca un alumno por su id. Devuelve el objeto Alumno o None."""
+    session = SessionLocal()
+    try:
+        return session.query(Alumno).filter(Alumno.id == alumno_id).first()
+    finally:
+        session.close()
+
 #funcion para poder encontrar a un docente por su email
 def get_docente_by_email(email: str) -> Docente | None:
     """Busca un docente por su email. Devuelve el objeto Docente o None."""
@@ -254,11 +263,20 @@ def actualizar_base_datos_docentes(path: str):
         session.close()
 
 #Funcion que utilizaran los agentes evaluador y critico para guardar en la base de datos MySQL el progreso del alumno.
-def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alumno: str = None, puntuacion_ejercicio: str = None, retroalimentacion_ejercicio: str = None, ambito_dificultad: str = None): 
+def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alumno: str = None, puntuacion_ejercicio: str = None,
+                      retroalimentacion_ejercicio: str = None, ambito_dificultad: str = None, asignatura: int = None): 
     """Funcion que sirve para guardar en la base de datos 
     MySQL el progreso del alumno, incluyendo los aspectos claves de este"""
     session = SessionLocal()
     try:
+        #Obtenemos el id de la asigntura a partir del nombre que nos ha pasado el fontEnd, para poder guardarlo en la tabla de progreso y asi luego poder filtrar el progreso por asignatura.
+        asignatura_id = None
+        if asignatura:
+            asignaturas = session.query(Asignatura).all()
+            for a in asignaturas:
+                if a.nombre.lower().replace(" ", "_") == asignatura:
+                    asignatura_id = a.id
+                    break
         progreso_alumno = Progreso(
             alumno_id=alumno_id,
             enunciado_ejercicio=enunciado_ejercicio,
@@ -266,7 +284,8 @@ def guardar_progreso(alumno_id: int, enunciado_ejercicio: str = None, codigo_alu
             puntuacion_ejercicio=puntuacion_ejercicio,
             retroalimentacion_ejercicio=retroalimentacion_ejercicio,
             fecha_evaluacion=datetime.now(),
-            ambito_dificultad=ambito_dificultad
+            ambito_dificultad=ambito_dificultad,
+            asignatura_id=asignatura_id
         )
         session.add(progreso_alumno)
         session.commit()
@@ -369,13 +388,22 @@ def eliminar_cuenta_alumno(alumno_id: int):
 def guardar_interaccion(alumno_id: int, mensaje_usuario: str, respuesta_agente: str, tipo_interaccion: str, asignatura: str):
     session = SessionLocal()
     try:
+        #cogemos el id de la asignatura a partir del nombre que nos ha pasado el fontEnd, para poder guardarlo en la tabla de interacciones y asi luego poder filtrar las interacciones por asignatura.
+        asignatura_id = None
+        if asignatura:
+            asignaturas = session.query(Asignatura).all()
+            for a in asignaturas:
+                if a.nombre.lower().replace(" ", "_") == asignatura:
+                    asignatura_id = a.id
+                    break
+
         interaccion = Interaccion(
             alumno_id=alumno_id,
             mensaje_usuario=mensaje_usuario,
             respuesta_agente=respuesta_agente,
             tipo_interaccion=tipo_interaccion,
             fecha_interaccion=datetime.now(),
-            asignatura=asignatura
+            asignatura_id=asignatura_id
         )
         session.add(interaccion)
         session.commit()
@@ -386,16 +414,17 @@ def guardar_interaccion(alumno_id: int, mensaje_usuario: str, respuesta_agente: 
     finally:
         session.close()
 
-def get_interacciones(alumno_id: int):
+def get_interacciones(alumno_id: int, asignatura_id: int | None = None) -> list[Interaccion]:
     session = SessionLocal()
     try:
-        return session.query(Interaccion).filter(
-            Interaccion.alumno_id == alumno_id
-        ).order_by(Interaccion.fecha_interaccion.desc()).all()
+        query = session.query(Interaccion).filter(Interaccion.alumno_id == alumno_id)
+        if asignatura_id is not None:
+            query = query.filter(Interaccion.asignatura_id == asignatura_id)
+        return query.order_by(Interaccion.fecha_interaccion.desc()).all()
     finally:
         session.close()
 
-#definimos la funcion para poder obtener las asignaturas por cliente 
+#definimos la funcion para poder obtener las asignaturas por cliente
 def get_asignaturas_por_docente(docente_id: int) -> list[Asignatura]:
       session = SessionLocal()
       try:
@@ -407,6 +436,19 @@ def get_asignaturas_por_docente(docente_id: int) -> list[Asignatura]:
           )
       finally:
           session.close()
+
+#Devuelve las asignaturas en las que el alumno esta matriculado
+def get_asignaturas_por_alumno(alumno_id: int) -> list[Asignatura]:
+    session = SessionLocal()
+    try:
+        return (
+            session.query(Asignatura)
+            .join(AlumnoAsignatura, AlumnoAsignatura.asignatura_id == Asignatura.id)
+            .filter(AlumnoAsignatura.alumno_id == alumno_id)
+            .all()
+        )
+    finally:
+        session.close()
 
 
 def crear_asignatura(nombre: str,codigo: str, docente_id: int) -> Asignatura:
@@ -519,12 +561,13 @@ def matricular_alumno_en_asignatura(alumno_id: int, asignatura_id: int) -> Alumn
     finally:
         session.close()
 
-def get_progreso_alumno(alumno_id: int) -> list[Progreso]:
+def get_progreso_alumno(alumno_id: int, asignatura_id: int | None = None) -> list[Progreso]:
       session = SessionLocal()
       try:
-          return session.query(Progreso).filter(
-              Progreso.alumno_id == alumno_id
-          ).order_by(Progreso.fecha_evaluacion.desc()).all()
+         query = session.query(Progreso).filter(Progreso.alumno_id == alumno_id)
+         if asignatura_id is not None:
+             query = query.filter(Progreso.asignatura_id == asignatura_id)
+         return query.order_by(Progreso.fecha_evaluacion.desc()).all()
       finally:
           session.close()
 
