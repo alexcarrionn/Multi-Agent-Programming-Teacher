@@ -196,3 +196,18 @@ msgstr "Error al eliminar al alumno de la asignatura."
 
 msgid "STUDENT REMOVED FROM ASSIGNMENT"
 msgstr "Alumno eliminado de la asignatura correctamente."
+
+msgid "DOCUMENTS UPLOADED"
+msgstr "Documentos subidos correctamente. El indexado puede tardar unos segundos."
+
+msgid "INVALID DOCUMENT TYPE"
+msgstr "Tipo de documento inválido. Debe ser 'teoria' o 'practicas'."
+
+msgid "DOCUMENT NOT FOUND"
+msgstr "Documento no encontrado."
+
+msgid "DOCUMENT DELETED"
+msgstr "Documento eliminado correctamente."
+
+msgid "DOCENTE NOT FOUND"
+msgstr "No se ha encontrado el docente."

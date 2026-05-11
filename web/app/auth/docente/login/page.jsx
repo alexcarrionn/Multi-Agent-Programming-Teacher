@@ -131,7 +131,7 @@ export default function Login() {
               {t("login_submit")}
             </button>
             <Button asChild variant="outline" type="button" className="w-full py-2.5 rounded-lg">
-              <Link href="/auth/login">{t("cancel")}</Link>
+              <Link href="/">{t("cancel")}</Link>
             </Button>
           </div>
 

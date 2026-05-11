@@ -85,6 +85,9 @@
   "welcome_title": "Welcome to Codi",
   "welcome_subtitle": "Your teaching assistant to learn programming step by step.",
   "welcome_login_prompt": "Sign in to start interacting with Codi.",
+  "welcome_suggestion_1": "Explain a basic concept for this subject",
+  "welcome_suggestion_2": "Give me an exercise to practice",
+  "welcome_suggestion_3": "Show me a code example about this subject",
 
   "chat_placeholder": "Type your message...",
   "chat_loading_placeholder": "Codi is typing...",

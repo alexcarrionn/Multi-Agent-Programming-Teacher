@@ -197,3 +197,18 @@ msgstr "Error removing the student from the subject."
 
 msgid "STUDENT REMOVED FROM ASSIGNMENT"
 msgstr "Student removed from the subject successfully."
+
+msgid "DOCUMENTS UPLOADED"
+msgstr "Documents uploaded successfully. Indexing may take a few seconds."
+
+msgid "INVALID DOCUMENT TYPE"
+msgstr "Invalid document type. Must be 'teoria' or 'practicas'."
+
+msgid "DOCUMENT NOT FOUND"
+msgstr "Document not found."
+
+msgid "DOCUMENT DELETED"
+msgstr "Document deleted successfully."
+
+msgid "DOCENTE NOT FOUND"
+msgstr "Teacher not found."

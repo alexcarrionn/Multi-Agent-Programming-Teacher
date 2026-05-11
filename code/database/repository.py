@@ -339,6 +339,25 @@ def update_password(alumno_id: int, new_password: str):
         raise
     finally:
         session.close()
+
+#Actualiza la contrasena de un docente. Analogo a update_password pero sobre la tabla Docente.
+def update_password_docente(docente_id: int, new_password: str):
+    session = SessionLocal()
+    try:
+        docente = session.query(Docente).filter(Docente.id == docente_id).first()
+        if docente is not None:
+            docente.password = hash_password(new_password)
+            session.commit()
+            session.refresh(docente)
+            return docente
+        else:
+            raise ValueError(_("DOCENTE NOT FOUND"))
+    except Exception as e:
+        print(f"{_('ERROR UPDATING PASSWORD')}: {e}")
+        session.rollback()
+        raise
+    finally:
+        session.close()
 """
 Esta funcion la dejaremos por si en un futuro queremos eliminar el progreso del alumno al eliminar su cuenta, 
 aunque por ahora se ha optado por una estrategia de anonimización de los datos del alumno, 

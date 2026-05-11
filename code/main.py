@@ -37,11 +37,13 @@ from database.repository import (
     authenticate_docente,
     create_tables,
     get_alumno_by_email,
+    get_docente_by_email,
     register_alumno,
     authenticate_alumno,
     tablas_existen,
     schema_exists,
     update_password,
+    update_password_docente,
     eliminar_cuenta_alumno,
     get_interacciones, 
     import_alumnos_autorizados_excel,
@@ -566,8 +568,8 @@ def obtener_interacciones(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener interacciones: {str(e)}")
     
-# Almacenamiento temporal de tokens: {token: (email, expires_at)}
-_reset_tokens: dict[str, tuple[str, datetime]] = {}
+# Almacenamiento temporal de tokens: {token: (email, rol, expires_at)} donde rol es "alumno" o "docente"
+_reset_tokens: dict[str, tuple[str, str, datetime]] = {}
 
 def _send_reset_email(recipient: str, reset_url: str):
     
@@ -594,20 +596,29 @@ def _send_reset_email(recipient: str, reset_url: str):
 @app.post(
     "/api/forgot-password",
     summary="Recuperar contraseña",
-    description="Envía un correo al alumno con un enlace para restablecer su contraseña. Siempre devuelve éxito para no revelar si el email existe.",
+    description="Envía un correo al alumno o docente con un enlace para restablecer su contraseña. Siempre devuelve éxito para no revelar si el email existe.",
     response_model=MessageResponse,
     tags=["auth"],
 )
 def forgot_password(datos: ForgotPasswordRequest):
     import logging
+    # Buscamos primero como alumno; si no existe, probamos como docente.
+    rol = None
     alumno = get_alumno_by_email(datos.email)
     if alumno and not alumno.anonimizado:
+        rol = "alumno"
+    else:
+        docente = get_docente_by_email(datos.email)
+        if docente:
+            rol = "docente"
+
+    if rol is not None:
         token = secrets.token_urlsafe(32)
         reset_url = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
         try:
             _send_reset_email(datos.email, reset_url)
             # Solo guardamos el token si el correo se envió con éxito
-            _reset_tokens[token] = (datos.email, datetime.now() + timedelta(hours=1))
+            _reset_tokens[token] = (datos.email, rol, datetime.now() + timedelta(hours=1))
         except Exception as e:
             # Logueamos el error internamente pero devolvemos 200 para no revelar si el email existe
             logging.error(f"Error enviando email de reset a {datos.email}: {e}")
@@ -626,21 +637,32 @@ def forgot_password(datos: ForgotPasswordRequest):
 )
 def reset_password(datos: ResetPasswordRequest):
     token_data = _reset_tokens.get(datos.token)
-    if not token_data or datetime.now() > token_data[1]:
+    # token_data es (email, rol, expires_at)
+    if not token_data or datetime.now() > token_data[2]:
         _reset_tokens.pop(datos.token, None)
         raise HTTPException(status_code=400, detail=_("INVALID OR EXPIRED TOKEN"))
     if len(datos.new_password) < 8:
         raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
-    email = token_data[0]
-    alumno = get_alumno_by_email(email)
-    if not alumno:
-        raise HTTPException(status_code=400, detail=_("ALUMNO NOT FOUND"))
+    email, rol, _expires = token_data
     try:
-        update_password(alumno.id, datos.new_password)
+        if rol == "alumno":
+            alumno = get_alumno_by_email(email)
+            if not alumno:
+                raise HTTPException(status_code=400, detail=_("ALUMNO NOT FOUND"))
+            update_password(alumno.id, datos.new_password)
+        elif rol == "docente":
+            docente = get_docente_by_email(email)
+            if not docente:
+                raise HTTPException(status_code=400, detail=_("DOCENTE NOT FOUND"))
+            update_password_docente(docente.id, datos.new_password)
+        else:
+            raise HTTPException(status_code=400, detail=_("INVALID OR EXPIRED TOKEN"))
         del _reset_tokens[datos.token]
         return {"message": _("PASSWORD RESET SUCCESS")}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=_("PASSWORD RESET ERROR") + f": {str(e)}") 
+        raise HTTPException(status_code=500, detail=_("PASSWORD RESET ERROR") + f": {str(e)}")
     
 #funcion para poder obtener las asignaturas
 @app.get(

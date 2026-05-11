@@ -37,9 +37,19 @@ export default function Header() {
         const lista = data.asignaturas || [];
         setAsignaturas(lista);
         if (lista.length > 0) {
-          const inicial = user?.asignatura || slugify(lista[0].nombre);
+          const slugsValidos = lista.map((a) => slugify(a.nombre));
+          const slugCacheado = user?.asignatura;
+          // Si el slug cacheado en user.asignatura ya no esta en la lista (asignatura
+          // borrada, alumno desmatriculado, slug viejo hardcoded, etc.), sobrescribir
+          // con el primero valido para que el chat no envie un slug huerfano.
+          const inicial = slugCacheado && slugsValidos.includes(slugCacheado)
+            ? slugCacheado
+            : slugsValidos[0];
           setAsignaturaSlug(inicial);
-          if (!user?.asignatura) setUser({ ...user, asignatura: inicial });
+          if (inicial !== slugCacheado) setUser({ ...user, asignatura: inicial });
+        } else {
+          setAsignaturaSlug("");
+          if (user?.asignatura) setUser({ ...user, asignatura: null });
         }
       })
       .catch(() => {
