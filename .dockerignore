@@ -1,0 +1,36 @@
+ # Git
+  .git
+  .gitignore
+
+  # Python
+  .venv
+  __pycache__
+  **/__pycache__
+  **/*.pyc
+  **/*.pyo
+
+  # Secrets — los inyecta el compose via env_file
+  .env
+  .env.*
+
+  # Frontend (no entra en la imagen del backend)
+  web
+
+  # Datos locales (RAG, uploads) — montados como volumen si se quieren persistir
+  code/data
+
+  # Docker
+  Dockerfile
+  .dockerignore
+  docker-compose.yml
+  docker-compose.*.yml
+
+  # IDE / herramientas
+  .claude
+  .vscode
+  .idea
+  *.log
+
+  # Docs
+  README.md
+  **/*.md

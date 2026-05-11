@@ -1,0 +1,23 @@
+ # Node
+  node_modules
+  .next
+  npm-debug.log*
+
+  # Git
+  .git
+  .gitignore
+
+  # Env
+  .env
+  .env.*
+
+  # Docker
+  Dockerfile
+  .dockerignore
+
+  # IDE
+  .vscode
+  .idea
+
+  # Docs
+  README.md

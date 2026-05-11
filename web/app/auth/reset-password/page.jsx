@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
@@ -11,7 +11,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import "@/lib/i18n";
 
-export default function ResetPassword() {
+function ResetPasswordInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -150,5 +150,13 @@ export default function ResetPassword() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
