@@ -1,5 +1,6 @@
 
 import json
+import asyncio
 from agents.supervisor import nodo_supervisor
 from .state import AgentState
 from langgraph.graph import StateGraph
@@ -60,11 +61,14 @@ def nodo_guardar_progreso(state):
     asignatura = state.get("asignatura")
 
     if alumno_id:
+        #La puntuacion en el state es ahora un float (extraido en el evaluador con regex).
+        #La columna SQL es longText, asi que la serializamos a string antes de insertar.
+        puntuacion_str = str(puntuacion) if puntuacion is not None else None
         guardar_progreso(
             alumno_id=alumno_id,
             enunciado_ejercicio=enunciado,
             codigo_alumno=codigo_alumno,
-            puntuacion_ejercicio=puntuacion,
+            puntuacion_ejercicio=puntuacion_str,
             retroalimentacion_ejercicio=feedback,
             ambito_dificultad=ambito_dificultad,
             asignatura=asignatura
@@ -166,7 +170,9 @@ def _build_graph():
             AgentType.EVALUADOR.value: AgentType.EVALUADOR.value,
         }
     )
-    #educador puede pedirle un ejemplo al demostrador y ya salir
+    #El educador siempre pasa al demostrador para complementar la explicacion con un ejemplo.
+    #Si el demostrador no encuentra material adecuado y dispara su fallback, lo filtra el
+    #propio agente devolviendo dict vacio (ver demostrador.py).
     graph_builder.add_edge(AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value)
     graph_builder.add_edge(AgentType.DEMOSTRADOR.value, END)
 
@@ -185,7 +191,7 @@ def _build_graph():
 graph = _build_graph()
 
 # Funcion para ejecutar el workflow y mostrar las actualizaciones en tiempo real
-def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int, asignatura: str = None):
+async def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int, asignatura: str = None):
     config = {"configurable": {"thread_id": thread_id}}
 
     checkpoint = graph.get_state(config)
@@ -196,13 +202,43 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
     ultimo_agente = "codi"
     prev_event: dict = {}
 
+    # Cola productor/consumidor: el productor empuja eventos de graph.astream, el consumidor
+    # los emite por SSE. Si pasan 10s sin evento yieldeamos un comentario keepalive para que
+    # Node/proxies/navegador no corten la conexion mientras un nodo bloquea (LLM lento, RAG).
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def producer():
+        try:
+            async for event in graph.astream(
+                {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": "", "asignatura": asignatura},
+                config,
+                stream_mode="values",
+            ):
+                await queue.put(("event", event))
+        except Exception as e:
+            await queue.put(("error", str(e)))
+        finally:
+            await queue.put(("done", None))
+
+    producer_task = asyncio.create_task(producer())
+
     try:
-        events = graph.stream(
-            {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": "", "asignatura": asignatura},
-            config,
-            stream_mode="values",
-        )
-        for event in events:
+        while True:
+            try:
+                kind, data = await asyncio.wait_for(queue.get(), timeout=10)
+            except asyncio.TimeoutError:
+                yield ": keepalive\n\n"
+                continue
+
+            if kind == "done":
+                break
+            if kind == "error":
+                error_payload = json.dumps({"error": data}, ensure_ascii=False)
+                yield f"data: {error_payload}\n\n"
+                break
+
+            event = data
+
             # Respuesta directa del supervisor (FINISH con texto)
             respuesta_supervisor = event.get("respuesta_supervisor", "")
             if respuesta_supervisor and respuesta_supervisor not in sent_contents:
@@ -223,7 +259,15 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
             ultimo_mensaje = nuevos[-1]
 
             if isinstance(ultimo_mensaje, AIMessage) and ultimo_mensaje.content:
-                content = ultimo_mensaje.content.strip()
+                # Gemini puede devolver content como lista de partes [{"type":"text","text":"..."}]
+                # en lugar de string. Normalizamos antes del strip() para evitar AttributeError.
+                raw_content = ultimo_mensaje.content
+                if isinstance(raw_content, list):
+                    raw_content = "".join(
+                        part.get("text", "") if isinstance(part, dict) else str(part)
+                        for part in raw_content
+                    )
+                content = str(raw_content).strip()
                 if content and content not in sent_contents:
                     sent_contents.add(content)
                     agent = _detect_agent(event, prev_event)
@@ -234,19 +278,41 @@ def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumn
 
             prev_event = event
 
-    except Exception as e:
-        error_payload = json.dumps({"error": str(e)}, ensure_ascii=False)
-        yield f"data: {error_payload}\n\n"
-    finally:
         yield "data: [DONE]\n\n"
+
+    except (GeneratorExit, asyncio.CancelledError):
+        # El cliente cerro la conexion. Cancelamos el productor (fire-and-forget) y
+        # propagamos. No await aqui: bloquear el cleanup en Python 3.12 dispara
+        # "FATAL: exception not rethrown" porque el async generator se cierra mal.
+        producer_task.cancel()
+        raise
+    except Exception as e:
+        producer_task.cancel()
+        # Intentamos emitir el error; si el generator ya esta cerrando, lo ignoramos
+        # para no romper el cleanup.
+        try:
+            error_payload = json.dumps({"error": str(e)}, ensure_ascii=False)
+            yield f"data: {error_payload}\n\n"
+        except (GeneratorExit, RuntimeError):
+            pass
+    finally:
+        # Solo persistencia, sin awaits. El producer_task ya esta cancelado en los
+        # except superiores; si llegamos aqui por flujo normal (done), tambien se
+        # cancela por si quedo algo pendiente.
+        if not producer_task.done():
+            producer_task.cancel()
+
         if respuesta_completa and alumno_id:
-            guardar_interaccion(
-                alumno_id=alumno_id,
-                mensaje_usuario=user_input,
-                respuesta_agente="\n\n".join(respuesta_completa),
-                tipo_interaccion=ultimo_agente,
-                asignatura=asignatura
-            )
+            try:
+                guardar_interaccion(
+                    alumno_id=alumno_id,
+                    mensaje_usuario=user_input,
+                    respuesta_agente="\n\n".join(respuesta_completa),
+                    tipo_interaccion=ultimo_agente,
+                    asignatura=asignatura
+                )
+            except Exception:
+                pass
 
 def _detect_agent(event: dict, prev: dict) -> str:
     """Detecta el agente comparando el estado actual con el anterior para ver qué cambió en este turno."""

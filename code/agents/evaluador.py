@@ -49,12 +49,28 @@ class EvaluadorAgent:
             "contexto": state.get("contexto", "No disponible"),
             "asignatura": state.get("asignatura", "Introduccion_programacion"),
         })
-        #Extraemos los metadatos de cambio de nivel con regex para mayor robustez, en esta parte lo que se va a hacer es 
+        #Extraemos los metadatos de cambio de nivel con regex para mayor robustez, en esta parte lo que se va a hacer es
         #Extraer la informacion que no queremos del mensaje y poder saber si el agente ha decidido cambiar el nivel del alumno
         contenido = response.content
         cambio = False
         nuevo_nivel_val = None
         justificacion = None
+        puntuacion_num = None
+
+        #Extraemos la nota numerica del texto. Buscamos el primer patron "X/10" (entero o
+        #decimal con punto o coma). Si el LLM ignora la regla y devuelve otra escala
+        #(p.ej. "23/25"), no se encontrara match y guardaremos None.
+        nota_match = re.search(r"\b(\d+(?:[.,]\d+)?)\s*/\s*10\b", contenido)
+        if nota_match:
+            try:
+                puntuacion_num = float(nota_match.group(1).replace(",", "."))
+                #Clamp defensivo por si el LLM saca un "11/10" o algo raro
+                if puntuacion_num < 0:
+                    puntuacion_num = 0.0
+                elif puntuacion_num > 10:
+                    puntuacion_num = 10.0
+            except ValueError:
+                puntuacion_num = None
         #Extraemos la informacion de cambio de nivel utilizando expresiones regulares para buscar patrones específicos en el mensaje del agente
         cambio_match = re.search(r"cambio_nivel\s*:\s*(true|false)", contenido, re.IGNORECASE)
         nivel_match = re.search(r"nuevo_nivel\s*:\s*(.+)", contenido, re.IGNORECASE)
@@ -75,10 +91,12 @@ class EvaluadorAgent:
         contenido_limpio = re.sub(r"^-?\s*cambio_nivel\s*:\s*.+$\n?", "", contenido_limpio, flags=re.MULTILINE)
         contenido_limpio = contenido_limpio.strip()
 
-        #Devolvemos la respuesta limpia y los campos de cambio de nivel para que se actualicen en el estado del grafo
+        #Devolvemos la respuesta limpia y los campos de cambio de nivel para que se actualicen en el estado del grafo.
+        #puntuacion guarda el valor numerico (float 0-10) extraido del texto; el texto completo
+        #de la evaluacion ya viaja en "mensajes" y se persiste tal cual en "feedback" via el critico.
         return {
             "mensajes": [AIMessage(content=contenido_limpio)],
-            "puntuacion": contenido_limpio,
+            "puntuacion": puntuacion_num,
             "cambio_nivel": cambio,
             "nuevo_nivel": nuevo_nivel_val,
             "justificacion_cambio_nivel": justificacion,

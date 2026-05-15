@@ -34,6 +34,7 @@ class AgentState(TypedDict):
     concepto: Optional[str]
     codigo_alumno: Optional[str]
     enunciado: Optional[str]
+    pedir_demostracion: Optional[bool]
 
     #Informacion acerca del nivel del alumno
     cambio_nivel: Optional[bool]

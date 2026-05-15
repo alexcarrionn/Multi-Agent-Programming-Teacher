@@ -4,7 +4,6 @@ langchain-experimental
 langchain-text-splitters
 langchain-qdrant
 langchain-google-genai
-langchain-ollama
 langchain-openai
 langgraph
 qdrant-client
@@ -13,7 +12,6 @@ sqlalchemy
 mysql-connector-python
 passlib
 python-dotenv
-typing-extensions
 polib
 openpyxl
 pypdf

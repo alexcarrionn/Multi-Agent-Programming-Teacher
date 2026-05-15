@@ -35,6 +35,8 @@ services:
       FRONTEND_URL: http://localhost:3000
     ports:
       - "8000:8000"
+    #expose:
+      #- "8000"
     volumes:
       - hf_cache:/app/.cache/huggingface
       - ./code/data:/app/code/data
@@ -52,7 +54,7 @@ services:
       BACKEND_INTERNAL_URL: http://api:8000
     ports:
       - "3000:3000"
-
+  
 volumes:
   mysql_data:
   hf_cache:

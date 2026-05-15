@@ -1,23 +1,27 @@
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \ 
+    PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HF_HOME=/app/.cache/huggingface
 
 WORKDIR /app
 
 #INSTALAMOS DEPENDENCIAS
+# BuildKit cache mount: reutiliza wheels entre builds (rebuilds ~10x mas rapidos).
+# extra-index-url cpu: pytorch CPU-only en vez del binario CUDA (~2GB menos).
 COPY requeriments.txt ./
-RUN pip install --no-cache-dir -r requeriments.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+    -r requeriments.txt
 
 #COPIAMOS EL CODIGO DE LA APP
 COPY code  ./code
 
 #Compilamos los .po -> .mo
 WORKDIR /app/code
-RUN python -m compile_translations.py || true
+RUN python compile_translations.py
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
