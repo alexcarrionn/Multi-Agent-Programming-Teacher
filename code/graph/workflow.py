@@ -43,7 +43,10 @@ elif settings.LLM_MODEL.startswith("gpt"):
         api_key=settings.LLM_API_KEY,
         temperature=0.2,
         request_timeout=120,
-        max_tokens=1024,
+        #gpt-oss consume tokens en reasoning interno (<think>...) que no salen al content.
+        #Con 1024 se agotaba todo el budget razonando y devolvia content vacio (ver LangSmith).
+        #4096 es el techo razonable; mas alto empieza a dar latencia mala y riesgo OOM en local.
+        max_tokens=4096,
         frequency_penalty=0.5,
     )
 
@@ -170,10 +173,18 @@ def _build_graph():
             AgentType.EVALUADOR.value: AgentType.EVALUADOR.value,
         }
     )
-    #El educador siempre pasa al demostrador para complementar la explicacion con un ejemplo.
-    #Si el demostrador no encuentra material adecuado y dispara su fallback, lo filtra el
-    #propio agente devolviendo dict vacio (ver demostrador.py).
-    graph_builder.add_edge(AgentType.EDUCADOR.value, AgentType.DEMOSTRADOR.value)
+    #Tras el educador, ramificamos: por defecto encadenamos al demostrador para que
+    #complemente la explicacion con un ejemplo. Pero si el educador ha detectado que el
+    #alumno pidio una pregunta de autoevaluacion (skip_demostrador=True), saltamos al
+    #final del grafo: no tiene sentido ilustrar una pregunta con un ejemplo.
+    graph_builder.add_conditional_edges(
+        AgentType.EDUCADOR.value,
+        lambda state: END if state.get("skip_demostrador") else AgentType.DEMOSTRADOR.value,
+        {
+            END: END,
+            AgentType.DEMOSTRADOR.value: AgentType.DEMOSTRADOR.value,
+        },
+    )
     graph_builder.add_edge(AgentType.DEMOSTRADOR.value, END)
 
     #el evaluador evalúa el código y pasa al critico, que da feedback, y luego se guarda el progreso
@@ -191,7 +202,7 @@ def _build_graph():
 graph = _build_graph()
 
 # Funcion para ejecutar el workflow y mostrar las actualizaciones en tiempo real
-async def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int, asignatura: str = None):
+async def stream_graph_updates(user_input: str, thread_id: str, user_level: str, alumno_id: int, asignatura: str = None, tipo_asignatura: str = "programacion"):
     config = {"configurable": {"thread_id": thread_id}}
 
     checkpoint = graph.get_state(config)
@@ -210,7 +221,7 @@ async def stream_graph_updates(user_input: str, thread_id: str, user_level: str,
     async def producer():
         try:
             async for event in graph.astream(
-                {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": "", "asignatura": asignatura},
+                {"mensajes": [("user", user_input)], "user_level": user_level, "alumno_id": alumno_id, "respuesta_supervisor": "", "asignatura": asignatura, "tipo_asignatura": tipo_asignatura},
                 config,
                 stream_mode="values",
             ):

@@ -25,6 +25,7 @@ from auth.auth import create_access_token, get_current_user, get_current_docente
 from database.repository import (
     crear_asignatura,
     get_alumno_by_id,
+    get_asignatura_by_slug,
     get_asignaturas_por_alumno,
     get_asignaturas_por_docente,
     get_alumnos_por_asignatura,
@@ -206,6 +207,7 @@ class ResetPasswordRequest(BaseModel):
 class AsignaturaCreate(BaseModel):
       nombre: str
       codigo: str
+      tipo: str = "programacion"  # Valor por defecto, se puede cambiar desde el frontend
 
 class MatricularRequest(BaseModel):
       alumno_email: str
@@ -222,6 +224,7 @@ class AlumnoAutorizadoUpdate(BaseModel):
       nombre: str
       correo: str
       dni: str | None = None
+
 
 # --- Modelos de response (Swagger) ---
 
@@ -258,6 +261,7 @@ class AsignaturaResponse(BaseModel):
     nombre: str
     codigo: str
     codigo_invitacion: str
+    tipo: str
 
 class AsignaturasListResponse(BaseModel):
     asignaturas: list[AsignaturaResponse]
@@ -530,13 +534,18 @@ def eliminar_cuenta(response: Response, current_user: dict = Depends(get_current
 )
 def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_user)):
     thread_id = str(current_user["alumno_id"])
+    #Resolvemos el tipo de asignatura desde BD (el frontend solo manda el slug).
+    #Si la asignatura no existe en BD o no se pasa, usamos "programacion" como default.
+    asignatura_obj = get_asignatura_by_slug(datos.asignatura)
+    tipo_asignatura = asignatura_obj.tipo if asignatura_obj else "programacion"
     return StreamingResponse(
         stream_graph_updates(
             user_input=datos.message,
             thread_id=thread_id,
             user_level=current_user["nivel"],
             alumno_id=current_user["alumno_id"],
-            asignatura=datos.asignatura
+            asignatura=datos.asignatura,
+            tipo_asignatura=tipo_asignatura,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
@@ -697,6 +706,7 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
             nombre=datos.nombre,
             codigo=datos.codigo,
             docente_id=current_user["docente_id"],
+            tipo=datos.tipo
         )
         nombre_capitalizado = datos.nombre.lower().replace(' ', '_')
         #creamos la carpeta de la asiognatura para que el docente pueda meter toda la informacion acerca de la asignatura
@@ -706,7 +716,7 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
         os.makedirs(DATA_ROOT / nombre_capitalizado / "teoria", exist_ok=True)
         os.makedirs(DATA_ROOT / nombre_capitalizado / "practicas", exist_ok=True) 
         #Asi lo que haremos sera crear la carpeta con la que persistiremos los documentos de la base de datos  
-        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
+        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion, "tipo": asignatura.tipo}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
@@ -727,7 +737,7 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
 def listar_asignaturas_docente(current_user: dict = Depends(get_current_docente)):
       asignaturas = get_asignaturas_por_docente(current_user["docente_id"])
       return {"asignaturas": [
-          {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion}
+          {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion, "tipo": a.tipo}
           for a in asignaturas
       ]}
 
@@ -748,7 +758,7 @@ def obtener_asignatura_por_id(asignatura_id: int, current_user: dict = Depends(g
     asignatura = next((a for a in asignaturas_docente if a.id == asignatura_id), None)
     if asignatura is None:
         raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
-    return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
+    return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion, "tipo": asignatura.tipo}
 
 
 
@@ -1048,7 +1058,7 @@ def eliminar_alumno_autorizado_endpoint(autorizado_id: int, current_user: dict =
 def unirse_asignatura_endpoint(datos: UnirseAsignaturaRequest, current_user: dict = Depends(get_current_docente)):
     try:
         asignatura = unirse_asignatura(current_user["docente_id"], datos.codigo)
-        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion}
+        return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion, "tipo": asignatura.tipo}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
@@ -1122,7 +1132,7 @@ def obtener_alumno(alumno_id: int, current_user: dict = Depends(get_current_doce
 def listar_asignaturas_alumno(current_user: dict = Depends(get_current_user)):
     asignaturas = get_asignaturas_por_alumno(current_user["alumno_id"])
     return {"asignaturas": [
-        {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion}
+        {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion, "tipo": a.tipo}
         for a in asignaturas
     ]}
 

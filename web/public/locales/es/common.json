@@ -172,5 +172,11 @@
   "docente_doc_files_selected": "{{count}} archivo(s) seleccionado(s)",
   "docente_doc_submit": "Subir e indexar",
   "docente_doc_upload_success_title": "Documentación subida",
-  "docente_doc_upload_success_msg": "Subidos: {{insertados}}. Fallidos: {{fallos}}. El indexado se completará en segundos."
+  "docente_doc_upload_success_msg": "Subidos: {{insertados}}. Fallidos: {{fallos}}. El indexado se completará en segundos.",
+
+  "docente_subject_type_label": "Tipo de asignatura",
+  "docente_subject_type_badge": "Tipo",
+  "tipo_programacion": "Programación",
+  "tipo_formacion_basica": "Formación básica"
+
 }

@@ -90,7 +90,22 @@ def get_connection():
     finally:
         session.close()
 
-#Funcion para poder encontrar a un alumno por su email 
+#Funcion para resolver una asignatura desde el slug (nombre.lower().replace(' ', '_'))
+def get_asignatura_by_slug(slug: str) -> Asignatura | None:
+    """Devuelve la Asignatura cuyo nombre normalizado coincide con `slug`, o None."""
+    if not slug:
+        return None
+    session = SessionLocal()
+    try:
+        for a in session.query(Asignatura).all():
+            if a.nombre.lower().replace(" ", "_") == slug:
+                return a
+        return None
+    finally:
+        session.close()
+
+
+#Funcion para poder encontrar a un alumno por su email
 def get_alumno_by_email(email: str) -> Alumno | None:
     """Busca un alumno por su email. Devuelve el objeto Alumno o None."""
     session = SessionLocal()
@@ -470,7 +485,7 @@ def get_asignaturas_por_alumno(alumno_id: int) -> list[Asignatura]:
         session.close()
 
 
-def crear_asignatura(nombre: str,codigo: str, docente_id: int) -> Asignatura:
+def crear_asignatura(nombre: str,codigo: str, docente_id: int, tipo: str = "programacion") -> Asignatura:
     """Crea una asignatura y la asocia al docente que la crea."""
     session = SessionLocal()
     try:
@@ -489,7 +504,7 @@ def crear_asignatura(nombre: str,codigo: str, docente_id: int) -> Asignatura:
               raise ValueError(_("ASIGNATURA NAME ALREADY EXISTS"))
           
           codigo_invitacion = str(uuid.uuid4().hex)[:8]  # Generar un código de invitación único
-          nueva = Asignatura(nombre=nombre_limpio, codigo=codigo_limpio, codigo_invitacion=codigo_invitacion)
+          nueva = Asignatura(nombre=nombre_limpio, codigo=codigo_limpio, codigo_invitacion=codigo_invitacion, tipo=tipo)
           session.add(nueva)
           session.flush()  # asigna el id sin cerrar la transacción
 
@@ -513,7 +528,7 @@ def unirse_asignatura(docente_id: int, codigo_invitacion: str) -> Asignatura:
             Asignatura.codigo_invitacion == codigo_invitacion
         ).first()
         if asignatura is None:
-            raise ValueError(_("INVITATION CODE INVALID"))
+            raise ValueError(_("INVALID INVITATION CODE"))
 
         existing = session.query(DocenteAsignatura).filter(
             DocenteAsignatura.docente_id == docente_id,

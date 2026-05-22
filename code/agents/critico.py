@@ -1,6 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from prompts.critico_prompts import AGENTE_CRITICO_PROMPT_ES, AGENTE_CRITICO_PROMPT_EN
+from prompts import get_prompt
 
 class CriticoAgent:
 
@@ -8,9 +8,9 @@ class CriticoAgent:
         # Inicializamos el agente con el prompt especifico y el llm
         self.llm = llm
 
-    def _get_prompt(self, idioma):
+    def _get_prompt(self, idioma, tipo_asignatura):
         """Selecciona el prompt en el idioma del usuario."""
-        prompt_text = AGENTE_CRITICO_PROMPT_EN if idioma == "en" else AGENTE_CRITICO_PROMPT_ES
+        prompt_text = get_prompt("critico", tipo_asignatura, idioma)
         return ChatPromptTemplate.from_messages([
             ("system", prompt_text),
             MessagesPlaceholder(variable_name="mensajes"),
@@ -18,7 +18,7 @@ class CriticoAgent:
     #Funcion principal del agente, se encarga de recibir el estado actural y construir una respuesta utilizando el prompt y el llm
     def run(self, state):
         #Seleccionamos el prompt en el idioma del usuario
-        prompt = self._get_prompt(state.get("idioma", "es"))
+        prompt = self._get_prompt(state.get("idioma", "es"), state.get("tipo_asignatura", "programacion"))
         #Construimos la cadena de procesamiento del agente, que incluye el prompt y el llm
         chain = prompt | self.llm
         #Contruimos la respuesta del agente, incluyendo los mensajes previos, el nivel del usuario y el contexto relevante
@@ -33,6 +33,7 @@ class CriticoAgent:
             #coge el contexto adicional del estado, si no esta definido se asume que no hay contexto adicional relevante
             "contexto": state.get("contexto", "No disponible"),
             "asignatura": state.get("asignatura", "Introduccion_programacion"),
+            "tipo_asignatura": state.get("tipo_asignatura", "programacion"),
         })
         #Devolvemos la respuesta del agente, incluyendo tanto los mensajes generados como las explicaciones que el agente considere relevantes para el usuario.
         return {

@@ -29,7 +29,7 @@ export default function DocenteDashboard() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
-  const [createInput, setCreateInput] = useState({ nombre: "", codigo: "" });
+  const [createInput, setCreateInput] = useState({ nombre: "", codigo: "" , tipo: "programacion"});
   const [joinInput, setJoinInput] = useState({ codigo: "" });
   const [submitting, setSubmitting] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
@@ -67,11 +67,11 @@ export default function DocenteDashboard() {
     try {
       await axios.post(
         "/backend/api/docente/asignaturas",
-        { nombre: createInput.nombre, codigo: createInput.codigo },
+        { nombre: createInput.nombre, codigo: createInput.codigo, tipo: createInput.tipo },
         { withCredentials: true }
       );
       sileo.success({ title: t("docente_create_success_title"), description: t("docente_create_success_msg") });
-      setCreateInput({ nombre: "", codigo: "" });
+      setCreateInput({ nombre: "", codigo: "", tipo: "programacion" });
       setCreateOpen(false);
       await fetchAsignaturas();
     } catch (err) {
@@ -181,7 +181,14 @@ export default function DocenteDashboard() {
                 }}
                 className="text-left bg-white p-5 rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <h2 className="font-semibold text-gray-900 mb-1">{a.nombre}</h2>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h2 className="font-semibold text-gray-900">{a.nombre}</h2>
+                  {a.tipo && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 whitespace-nowrap">
+                      {t(`tipo_${a.tipo}`)}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 mb-4">{t("docente_subject_code")}: {a.codigo}</p>
                 <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                   <div className="min-w-0">
@@ -233,6 +240,20 @@ export default function DocenteDashboard() {
                 onChange={(e) => setCreateInput({ ...createInput, codigo: e.target.value })}
                 required
               />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700" htmlFor="create-tipo">
+                {t("docente_subject_type_label")}
+              </label>
+              <select
+                id="create-tipo"
+                className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                value={createInput.tipo}
+                onChange={(e) => setCreateInput({ ...createInput, tipo: e.target.value })}
+              >
+                <option value="programacion">{t("tipo_programacion")}</option>
+                <option value="formacion_basica">{t("tipo_formacion_basica")}</option>
+              </select>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={submitting}>
