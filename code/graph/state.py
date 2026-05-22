@@ -36,6 +36,10 @@ class AgentState(TypedDict):
     enunciado: Optional[str]
     pedir_demostracion: Optional[bool]
 
+    #Flag que el educador setea cuando el alumno ha pedido una pregunta de autoevaluacion.
+    #Si esta a True, el workflow salta al final tras el educador sin pasar por el demostrador
+    skip_demostrador: Optional[bool]
+
     #Informacion acerca del nivel del alumno
     cambio_nivel: Optional[bool]
     nuevo_nivel: Optional[str]
@@ -44,6 +48,8 @@ class AgentState(TypedDict):
     #asignatura que el usuario está cursando
     asignatura: Optional[str]
 
+    #Ponemos el tipo de asignatura para poder adaptar los agentes a cada una de ellas, por ejemplo, si es una asignatura de programacion, el agente critico se centrara en el codigo del alumno, si es una asignatura de usos, el agente critico se centrara en las respuestas del alumno, etc.
+    tipo_asignatura: Optional[str]
 
 
 

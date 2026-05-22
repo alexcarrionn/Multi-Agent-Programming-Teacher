@@ -172,5 +172,9 @@
   "docente_doc_files_selected": "{{count}} file(s) selected",
   "docente_doc_submit": "Upload and index",
   "docente_doc_upload_success_title": "Documentation uploaded",
-  "docente_doc_upload_success_msg": "Uploaded: {{insertados}}. Failed: {{fallos}}. Indexing will finish in a few seconds."
+  "docente_doc_upload_success_msg": "Uploaded: {{insertados}}. Failed: {{fallos}}. Indexing will finish in a few seconds.",
+  "docente_subject_type_label": "Subject type",
+  "docente_subject_type_badge": "Type",
+  "tipo_programacion": "Programming",
+  "tipo_formacion_basica": "Basic literacy"
 }

@@ -4,7 +4,7 @@ import re
 from agents.agentType import AgentType
 from typing import Literal
 from rag.retriever import create_retriever
-from prompts.supervisor_prompts import AGENTE_SUPERVISOR_PROMPT
+from prompts import get_prompt
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from config.settings import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -27,7 +27,10 @@ elif settings.LLM_MODEL.startswith("gpt"):
         api_key=settings.LLM_API_KEY,
         temperature=0.2,
         request_timeout=120,
-        max_tokens=1024,
+        #gpt-oss consume tokens en reasoning interno; con 1024 se agotaba todo
+        #razonando y el content salia vacio (ver LangSmith trace).
+        #4096 es el techo razonable; mas alto empieza a dar latencia mala y riesgo OOM en local.
+        max_tokens=4096,
         frequency_penalty=0.3,
     )
 
@@ -55,12 +58,6 @@ class Router(BaseModel):
     codigo_alumno: str = Field(default="")
     idioma: str = Field(default="es")
     respuesta: str = Field(default="", description="Respuesta que el supervisor quiere que se le de al alumno, solo se usará si el supervisor decide que la pregunta no está en el ámbito o si el alumno ha terminado el workflow y se le quiere dar una respuesta final.")
-
-#Definimos el prompt del supervisor, que se encargará de decidir que agente debe actuar 
-prompt_supervisor = ChatPromptTemplate.from_messages([
-    ("system", AGENTE_SUPERVISOR_PROMPT),
-    MessagesPlaceholder(variable_name="mensajes"),
-]).partial(members=", ".join(miembros))
 
 
 def _ultimo_mensaje_usuario(state) -> str:
@@ -143,6 +140,7 @@ def _fallback_routing(user_message: str) -> dict:
         "enunciado": "",
         "codigo_alumno": "",
         "idioma": "es",
+        "pide_pregunta_autoevaluacion": False,
         "respuesta": "",
     }
 
@@ -150,6 +148,14 @@ def _fallback_routing(user_message: str) -> dict:
 #Funcion principal del supervisor, se encarga de recibir el estado actual y construir una respuesta utilizando el prompt y el llm
 def nodo_supervisor(state):
     asignatura = state.get("asignatura", "Introduccion_programacion")
+    tipo = state.get("tipo_asignatura", "programacion")
+
+    prompt_text = get_prompt("supervisor", tipo, "es")  # el supervisor solo tiene ES
+    prompt_supervisor = ChatPromptTemplate.from_messages([
+          ("system", prompt_text),
+          MessagesPlaceholder(variable_name="mensajes"),
+      ]).partial(members=", ".join(miembros))
+
     chain = prompt_supervisor | llm
     response = chain.invoke({
         "mensajes": state["mensajes"][-6:],
@@ -170,6 +176,7 @@ def nodo_supervisor(state):
     data.setdefault("enunciado", "")
     data.setdefault("codigo_alumno", "")
     data.setdefault("idioma", "es")
+    data.setdefault("pide_pregunta_autoevaluacion", False)
     data.setdefault("respuesta", "")
 
     next_agent = data.get("next_agent", "FINISH").lower()
@@ -203,6 +210,10 @@ def nodo_supervisor(state):
     # Siempre escribimos enunciado y codigo_alumno para limpiar valores de turnos anteriores
     result["enunciado"] = data.get("enunciado", "")
     result["codigo_alumno"] = data.get("codigo_alumno", "")
+
+    # Flag para que la arista educador->demostrador del grafo lo salte cuando el usuario
+    # pidio una pregunta de autoevaluacion. Siempre lo escribimos a false para limpiar valores de turnos anteriores.
+    result["skip_demostrador"] = bool(data.get("pide_pregunta_autoevaluacion"))
 
     # Solo se usa la respuesta directa cuando next_agent es FINISH.
     # Si el LLM mete texto en "respuesta" al enrutar a un agente, lo ignoramos.

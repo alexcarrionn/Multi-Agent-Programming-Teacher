@@ -109,6 +109,9 @@ class Asignatura(Base):
     codigo = Column(String(20), unique=True, nullable=False)
     codigo_invitacion = Column(String(50), unique=True, nullable=False)  # Codigo para que los docentes puedan acceder a la asignatura
 
+    #Creamos una nueva fila que representara el tipo de asignatura que es, 
+    #esto se hace para poder diferenciar entre asignaturas de programacion, usos, explicar... y asi poder adaptar los agentes a cada una de ellas.
+    tipo = Column(String(50), nullable=False, default="programacion")  
 #como un docente puede tener varias asignaturas, y una asignatura puede tener varios docentes, necesitamos una tabla intermedia para relacionar docentes y asignaturas.
 class DocenteAsignatura(Base):
     __tablename__ = 'docentes_asignaturas'

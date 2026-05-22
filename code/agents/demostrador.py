@@ -1,11 +1,6 @@
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from prompts.demostrador_prompts import (
-    AGENTE_DEMOSTRADOR_PROMPT_ES_DIRECTO,
-    AGENTE_DEMOSTRADOR_PROMPT_ES_TRAS_EDUCADOR,
-    AGENTE_DEMOSTRADOR_PROMPT_EN_DIRECTO,
-    AGENTE_DEMOSTRADOR_PROMPT_EN_TRAS_EDUCADOR,
-)
+from prompts import get_prompt
 
 
 # Substrings distintivos del fallback del demostrador. Solo se filtran cuando venimos
@@ -25,6 +20,32 @@ _FALLBACK_MARKERS_EDUCADOR = (
     "no tengo informaci",       # ES
     "i don't have information", # EN
 )
+
+# Cap defensivo: si el RAG devuelve un contexto enorme, lo truncamos antes de pasarlo al LLM.
+_MAX_CONTEXTO_CHARS = 2000
+
+
+def _ultimo_human_message(mensajes):
+    """Devuelve el ultimo mensaje del usuario, o None si no hay."""
+    for m in reversed(mensajes):
+        if hasattr(m, "type") and m.type == "human":
+            return m
+        if isinstance(m, tuple) and len(m) >= 2 and m[0] == "user":
+            return m
+    return None
+
+
+def _mensajes_para_demostrador(mensajes, tras_educador):
+    """Construye el contexto minimo para el demostrador: ultimo mensaje del usuario y,
+    si encadena tras el educador, su explicacion del turno actual.
+    """
+    if not mensajes:
+        return []
+    ultimo_human = _ultimo_human_message(mensajes)
+    if tras_educador:
+        #mensajes[-1] es el AIMessage que acaba de generar el educador en este turno
+        return [m for m in (ultimo_human, mensajes[-1]) if m is not None]
+    return [ultimo_human] if ultimo_human is not None else []
 
 
 def _educador_disparo_fallback(mensajes) -> bool:
@@ -50,20 +71,9 @@ class DemostradorAgent:
         self.llm = llm
 
     #Definimos una funcion para seleccionar el prompt segun el idioma y el modo (directo / tras educador).
-    def _get_prompt(self, idioma, tras_educador):
-        """Selecciona el prompt en el idioma del usuario y el modo de invocacion."""
-        if tras_educador:
-            prompt_text = (
-                AGENTE_DEMOSTRADOR_PROMPT_EN_TRAS_EDUCADOR
-                if idioma == "en"
-                else AGENTE_DEMOSTRADOR_PROMPT_ES_TRAS_EDUCADOR
-            )
-        else:
-            prompt_text = (
-                AGENTE_DEMOSTRADOR_PROMPT_EN_DIRECTO
-                if idioma == "en"
-                else AGENTE_DEMOSTRADOR_PROMPT_ES_DIRECTO
-            )
+    def _get_prompt(self, idioma, tipo, tras_educador):
+        modo = "tras_educador" if tras_educador else "directo"
+        prompt_text = get_prompt("demostrador", tipo, idioma, modo=modo)
         return ChatPromptTemplate.from_messages([
             ("system", prompt_text),
             MessagesPlaceholder(variable_name="mensajes"),
@@ -84,19 +94,20 @@ class DemostradorAgent:
             return {}
 
         #Seleccionamos el prompt en el idioma del usuario y el modo
-        prompt = self._get_prompt(state.get("idioma", "es"), tras_educador)
+        prompt = self._get_prompt(state.get("idioma", "es"), state.get("tipo_asignatura", "programacion"), tras_educador)
         #Construimos la cadena de procesamiento del agente, que incluye el prompt y el llm
         chain = prompt | self.llm
         #Contruimos la respuesta del agente, incluyendo los mensajes previos, el nivel del usuario y el contexto relevante
         response = chain.invoke({
-            "mensajes": mensajes[-6:],
+            "mensajes": _mensajes_para_demostrador(mensajes, tras_educador),
             #coge el nivel del usuario del estado, si no esta definido se asume que es principiante
             "user_level": state.get("user_level", "principiante"),
             #coge el concepto a ilustrar del estado, si no esta definido se asume que no hay un concepto específico
             "concepto": state.get("concepto", "No disponible"),
-            #coge el contexto del estado, si no esta definido se asume que no hay contexto relevante
-            "contexto": state.get("contexto", "No disponible"),
+            #coge el contexto del estado, truncado a _MAX_CONTEXTO_CHARS para evitar saturar al LLM
+            "contexto": (state.get("contexto") or "No disponible")[:_MAX_CONTEXTO_CHARS],
             "asignatura": state.get("asignatura", "Introduccion_programacion"),
+            "tipo_asignatura": state.get("tipo_asignatura", "programacion"),
         })
         #Solo cuando venimos tras el educador filtramos el fallback (para no concatenar texto
         #raro al educador). En modo directo el fallback es la respuesta legitima al alumno.

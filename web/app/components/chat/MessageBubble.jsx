@@ -140,32 +140,53 @@ export default function MessageBubble({ message }) {
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
+                                    //Passthrough del <pre> para que el handler `code` controle el wrapper completo
+                                    //y evitemos un <pre><pre>...</pre></pre> anidado.
+                                    pre: ({ children }) => <>{children}</>,
                                     code: ({ node, className, children, ...props }) => {
                                         const match = /language-(\w+)/.exec(className || '');
-                                        return match ? (
-                                            <div className="relative group/code my-3">
-                                                <div className="flex items-center justify-between bg-gray-800 rounded-t-lg px-3 py-1.5 text-xs text-gray-300 border border-b-0 border-gray-700">
-                                                    <span>{match[1]}</span>
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="h-5 w-5 hover:bg-gray-700 hover:text-white"
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
-                                                            sileo.success({
-                                                                title: 'Copiado',
-                                                                description: 'Código copiado al portapapeles.',
-                                                            });
-                                                        }}
-                                                    >
-                                                        <Copy className="h-3 w-3" />
-                                                    </Button>
+                                        const text = String(children);
+                                        //Es bloque si trae lenguaje o si el contenido contiene saltos de linea.
+                                        const isBlock = !!match || text.includes('\n');
+
+                                        if (match) {
+                                            return (
+                                                <div className="relative group/code my-3">
+                                                    <div className="flex items-center justify-between bg-gray-800 rounded-t-lg px-3 py-1.5 text-xs text-gray-300 border border-b-0 border-gray-700">
+                                                        <span>{match[1]}</span>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-5 w-5 hover:bg-gray-700 hover:text-white"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(text.replace(/\n$/, ''));
+                                                                sileo.success({
+                                                                    title: 'Copiado',
+                                                                    description: 'Código copiado al portapapeles.',
+                                                                });
+                                                            }}
+                                                        >
+                                                            <Copy className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                    <pre className="bg-gray-900 rounded-b-lg p-3 overflow-x-auto border border-t-0 border-gray-700 text-gray-100">
+                                                        <code className={className} {...props}>{children}</code>
+                                                    </pre>
                                                 </div>
-                                                <pre className="bg-gray-900 rounded-b-lg p-3 overflow-x-auto border border-t-0 border-gray-700 text-gray-100">
-                                                    <code className={className} {...props}>{children}</code>
+                                            );
+                                        }
+
+                                        if (isBlock) {
+                                            //Bloque sin lenguaje (citas literales, prompts, referencias). Prose, no codigo:
+                                            //envolvemos el texto en vez de scrollearlo, para que el alumno pueda leerlo.
+                                            return (
+                                                <pre className="bg-gray-100 rounded-lg p-3 my-3 border border-gray-200 overflow-x-auto whitespace-pre-wrap break-words text-xs text-gray-800">
+                                                    <code className="font-mono" {...props}>{children}</code>
                                                 </pre>
-                                            </div>
-                                        ) : (
+                                            );
+                                        }
+
+                                        return (
                                             <code className="px-1.5 py-0.5 rounded-md bg-gray-100 text-pink-600 text-xs font-mono" {...props}>
                                                 {children}
                                             </code>

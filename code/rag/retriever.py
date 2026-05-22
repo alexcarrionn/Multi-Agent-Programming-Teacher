@@ -4,7 +4,8 @@ from rag.qDrantClient import client
 from rag.embeddings import get_embeddings
 
 #le hemos añadido el collection_name para poder crear diferentes colecciones en QDRant cloud para las diferentes asignaturas.
-def create_retriever(top_k: int = 5, collection_name: str = None):
+#top_k=2 (antes 5): con 5 chunks el contexto sumaba ~1800 tokens y, junto con el system prompt.
+def create_retriever(top_k: int = 2, collection_name: str = None):
 
         embeddings_open_source = get_embeddings()
 

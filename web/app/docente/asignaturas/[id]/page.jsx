@@ -289,7 +289,14 @@ export default function AsignaturaPage() {
             <div className="bg-white p-6 rounded-xl border border-gray-200 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-1">{asignatura.nombre}</h1>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h1 className="text-2xl font-bold text-gray-900">{asignatura.nombre}</h1>
+                    {asignatura.tipo && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        {t(`tipo_${asignatura.tipo}`)}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">
                     {t("docente_subject_code")}: <span className="font-mono">{asignatura.codigo}</span>
                   </p>
