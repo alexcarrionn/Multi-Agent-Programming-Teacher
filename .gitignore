@@ -2,3 +2,6 @@
 .env
 __pycache__
 code/data/*
+
+# Certificados TLS de nginx: nunca subir claves privadas al repo
+nginx/ssl/

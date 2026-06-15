@@ -45,7 +45,7 @@ def test_respuesta_basica():
         result = critico.run(state)
         assert "mensajes" in result, "La respuesta no contiene la clave 'mensajes'"
         assert len(result["mensajes"]) > 0, "La lista de mensajes está vacía"
-        assert "explicaciones" in result, "La respuesta no contiene la clave 'explicaciones'"
+        assert "feedback" in result, "La respuesta no contiene la clave 'feedback'"
         contenido = result["mensajes"][0].content
         assert len(contenido) > 0, "El contenido de la respuesta está vacío"
         print(f"  Respuesta (primeros 300 chars): {contenido[:300]}...")
@@ -168,13 +168,13 @@ def test_estructura_respuesta():
         result = critico.run(state)
         assert isinstance(result, dict), "La respuesta no es un diccionario"
         assert "mensajes" in result, "Falta la clave 'mensajes'"
-        assert "explicaciones" in result, "Falta la clave 'explicaciones'"
+        assert "feedback" in result, "Falta la clave 'feedback'"
         assert isinstance(result["mensajes"], list), "'mensajes' no es una lista"
-        assert isinstance(result["explicaciones"], str), "'explicaciones' no es un string"
-        assert result["explicaciones"] == result["mensajes"][0].content, \
-            "'explicaciones' no coincide con el contenido del mensaje"
-        print("  Claves presentes: mensajes, explicaciones")
-        print("  Tipos correctos: mensajes=list, explicaciones=str")
+        assert isinstance(result["feedback"], str), "'feedback' no es un string"
+        assert result["feedback"] == result["mensajes"][0].content, \
+            "'feedback' no coincide con el contenido del mensaje"
+        print("  Claves presentes: mensajes, feedback")
+        print("  Tipos correctos: mensajes=list, feedback=str")
         print(">> PASS\n")
         return True
     except Exception as e:
