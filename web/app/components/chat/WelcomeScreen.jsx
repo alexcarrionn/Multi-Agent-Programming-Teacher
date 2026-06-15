@@ -25,10 +25,10 @@ export default function WelcomeScreen({ onSuggestionClick }) {
   };
 
   return (
-    <section className="w-full flex items-center justify-center px-6 py-6">
+    <section className="w-full flex items-center justify-center px-4 sm:px-6 py-6">
       <div className="w-full max-w-3xl text-center ">
         <Image src="/logo.svg" alt="Logo" width={60} height={50} priority className="mx-auto" />
-        <h1 className="text-4xl font-bold text-blue-600">{t("welcome_title")}</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-blue-600">{t("welcome_title")}</h1>
         <p className="mt-4 text-lg text-gray-700">{t("welcome_subtitle")}</p>
         {!loading && !user && (
           <p className="mt-6 text-lg text-gray-700">{t("welcome_login_prompt")}</p>

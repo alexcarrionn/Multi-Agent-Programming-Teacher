@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import axios from "axios";
+import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { sileo } from "sileo";
 import { useTranslation } from "react-i18next";
@@ -13,6 +14,7 @@ import "@/lib/i18n";
 export default function Register() {
   const router = useRouter();
   const { t } = useTranslation();
+  const [showPassword, setShowPassword] = useState(false);
   const [input, setInput] = useState({
     nombre: "",
     email: "",
@@ -71,10 +73,10 @@ export default function Register() {
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center p-6 bg-gray-100 py-12">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-gray-100">
         <div className="flex flex-col items-center mb-6">
           <Image src="/logo.svg" alt="Logo de Codi" width={48} height={48} priority className="mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 text-center">{t("register_title")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center">{t("register_title")}</h1>
           <p className="text-sm text-gray-500 mt-2 text-center">{t("register_subtitle")}</p>
         </div>
 
@@ -109,35 +111,49 @@ export default function Register() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5 relative">
               <label className="text-sm font-medium text-gray-700" htmlFor="password">
                 {t("register_password")}
               </label>
               <input
                 id="password"
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                type="text"
+                className="w-full p-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 value={input.password}
                 onChange={handleChange}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-[38px] text-gray-500"
+              >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 relative">
               <label className="text-sm font-medium text-gray-700" htmlFor="confirmPassword">
                 {t("register_confirm_password")}
               </label>
               <input
                 id="confirmPassword"
-                className="w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                type="text"
+                className="w-full p-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                type={showPassword ? "text" : "password"}
                 name="confirmPassword"
                 value={input.confirmPassword}
                 onChange={handleChange}
                 required
               />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-[38px] text-gray-500"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
             </div>
           </div>
 

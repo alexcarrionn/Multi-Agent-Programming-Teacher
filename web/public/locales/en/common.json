@@ -79,6 +79,8 @@
   "open_user_menu": "Open user menu",
   "header_login": "Sign in",
   "header_register": "Sign up",
+  "header_login_short": "Sign in",
+  "header_register_short": "Sign up",
   "header_profile": "Your profile",
   "header_logout": "Sign out",
 
@@ -87,7 +89,7 @@
   "welcome_login_prompt": "Sign in to start interacting with Codi.",
   "welcome_suggestion_1": "Explain a basic concept for this subject",
   "welcome_suggestion_2": "Give me an exercise to practice",
-  "welcome_suggestion_3": "Show me a code example about this subject",
+  "welcome_suggestion_3": "Show me a example about this subject",
 
   "chat_placeholder": "Type your message...",
   "chat_loading_placeholder": "Codi is typing...",
