@@ -173,10 +173,9 @@ def _build_graph():
             AgentType.EVALUADOR.value: AgentType.EVALUADOR.value,
         }
     )
-    #Tras el educador, ramificamos: por defecto encadenamos al demostrador para que
-    #complemente la explicacion con un ejemplo. Pero si el educador ha detectado que el
-    #alumno pidio una pregunta de autoevaluacion (skip_demostrador=True), saltamos al
-    #final del grafo: no tiene sentido ilustrar una pregunta con un ejemplo.
+    #Tras el educador, ramificamos. Pero si el educador ha detectado que el
+    #alumno pidio una pregunta de autoevaluacion , saltamos al
+    #final del grafo.
     graph_builder.add_conditional_edges(
         AgentType.EDUCADOR.value,
         lambda state: END if state.get("skip_demostrador") else AgentType.DEMOSTRADOR.value,
@@ -187,8 +186,17 @@ def _build_graph():
     )
     graph_builder.add_edge(AgentType.DEMOSTRADOR.value, END)
 
-    #el evaluador evalúa el código y pasa al critico, que da feedback, y luego se guarda el progreso
-    graph_builder.add_edge(AgentType.EVALUADOR.value, AgentType.CRITICO.value)
+    #el evaluador evalúa el código y normalmente pasa al critico, que da feedback, y luego se
+    #guarda el progreso. PERO si el evaluador ha rechazado el código, saltamos
+    #directamente al final.
+    graph_builder.add_conditional_edges(
+        AgentType.EVALUADOR.value,
+        lambda state: END if state.get("fuera_de_ambito") else AgentType.CRITICO.value,
+        {
+            END: END,
+            AgentType.CRITICO.value: AgentType.CRITICO.value,
+        },
+    )
     graph_builder.add_edge(AgentType.CRITICO.value, "guardar_progreso")
     graph_builder.add_edge("guardar_progreso", END)
     
@@ -328,6 +336,9 @@ async def stream_graph_updates(user_input: str, thread_id: str, user_level: str,
 def _detect_agent(event: dict, prev: dict) -> str:
     """Detecta el agente comparando el estado actual con el anterior para ver qué cambió en este turno."""
     if event.get("puntuacion") is not None and event.get("puntuacion") != prev.get("puntuacion"):
+        return AgentType.EVALUADOR.value
+    #Rechazo del evaluador (fuera_de_ambito): no hay puntuacion, pero el mensaje es del evaluador.
+    if event.get("fuera_de_ambito") and event.get("fuera_de_ambito") != prev.get("fuera_de_ambito"):
         return AgentType.EVALUADOR.value
     if event.get("feedback") and event.get("feedback") != prev.get("feedback"):
         return AgentType.CRITICO.value

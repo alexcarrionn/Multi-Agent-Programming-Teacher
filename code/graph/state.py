@@ -40,6 +40,10 @@ class AgentState(TypedDict):
     #Si esta a True, el workflow salta al final tras el educador sin pasar por el demostrador
     skip_demostrador: Optional[bool]
 
+    #Flag que el evaluador setea cuando rechaza el codigo. Si esta a True, el workflow salta al
+    #final tras el evaluador SIN pasar por el critico.
+    fuera_de_ambito: Optional[bool]
+
     #Informacion acerca del nivel del alumno
     cambio_nivel: Optional[bool]
     nuevo_nivel: Optional[str]
