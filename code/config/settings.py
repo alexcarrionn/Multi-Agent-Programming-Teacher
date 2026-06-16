@@ -35,6 +35,12 @@ class Settings:
     QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
     QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
 
+    # Umbral de relevancia (coseno, 0..1) para el retriever. Chunks por debajo se
+    # descartan: asi el "portero" de ambito bloquea preguntas fuera del material.
+    # Calibrar sin rebuild cambiando solo el .env. Subir si se cuela off-topic,
+    # bajar si preguntas legitimas devuelven "no tengo informacion".
+    RAG_SCORE_THRESHOLD = float(os.getenv("RAG_SCORE_THRESHOLD", "0.5"))
+
     # -- Configuracion de la aplicacion --
 
     DEBUG = os.getenv("DEBUG", "false").lower() == "true"

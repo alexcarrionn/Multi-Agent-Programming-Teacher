@@ -16,5 +16,9 @@ def create_retriever(top_k: int = 2, collection_name: str = None):
             embedding=embeddings_open_source,
             collection_name= collection_name or settings.QDRANT_COLLECTION
         )
-        # creamos el retriever
-        return vectorstore.as_retriever(search_kwargs={"k": top_k})
+        # creamos el retriever. El umbral se lee de settings (.env: RAG_SCORE_THRESHOLD)
+        # para poder calibrarlo sin rebuild del contenedor.
+        return vectorstore.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"k": top_k, "score_threshold": settings.RAG_SCORE_THRESHOLD},
+        )

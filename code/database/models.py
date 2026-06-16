@@ -52,9 +52,9 @@ class Progreso(Base):
 
 class AlumnoAulaAsignatura(Base):
     """
-    Tabla que identifica a los alumnos para poder comprobar si tienen acceso al agente docente o no. Esta tabla se va a sacar a 
-    través de un proceso de estracción de datos del aula virtual, donde se entraerá un excel con el nombre del alumno, 
-    su email y el dni (no es obligatorio). 
+    Tabla que identifica a los alumnos para poder comprobar si tienen acceso al agente docente o no. Se rellena a
+    través de un proceso de extracción de datos del aula virtual (Excel) o manualmente desde el panel del docente.
+    Solo se guarda el correo del alumno: es lo único necesario para autorizar el registro/matriculación.
     """
     __tablename__ = 'alumnos_aula_asignatura'
     __table_args__ = (UniqueConstraint('asignatura_id', 'correo', name='uq_alumnoaula_asignatura'),)
