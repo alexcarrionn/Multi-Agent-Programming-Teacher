@@ -216,14 +216,10 @@ class UnirseAsignaturaRequest(BaseModel):
       codigo: str
 
 class AlumnoAutorizadoCreate(BaseModel):
-      nombre: str
       correo: str
-      dni: str | None = None
 
 class AlumnoAutorizadoUpdate(BaseModel):
-      nombre: str
       correo: str
-      dni: str | None = None
 
 
 # --- Modelos de response (Swagger) ---
@@ -289,9 +285,7 @@ class ProgresoResponse(BaseModel):
 class AlumnoAutorizadoItem(BaseModel):
       id: int
       asignatura_id: int
-      nombre: str
       correo: str
-      dni: str | None
 
 class AlumnosAutorizadosListResponse(BaseModel):
     alumnos_autorizados: list[AlumnoAutorizadoItem]
@@ -888,7 +882,7 @@ def obtener_interacciones_docente(alumno_id: int,asignatura_id: int | None = Non
 @app.post(
       "/api/docente/asignaturas/{asignatura_id}/import-alumnos",
       summary="Importar alumnos autorizados desde Excel",
-      description="Sube un Excel (.xlsx) con columnas 'Nombre', 'Correo electrónico' y opcional 'DNI'. UPSERT por (asignatura, correo).",
+      description="Sube un Excel (.xlsx) con la columna 'Correo electrónico'. UPSERT por (asignatura, correo).",
       response_model=ImportResultResponse,
       tags=["docente"],
       responses={
@@ -941,7 +935,7 @@ def listar_alumnos_autorizados(asignatura_id: int, current_user: dict = Depends(
         raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
     autorizados = get_alumnos_autorizados(asignatura_id)
     return {"alumnos_autorizados": [
-        {"id": a.id, "asignatura_id": a.asignatura_id, "nombre": a.nombre, "correo": a.correo, "dni": a.dni}
+        {"id": a.id, "asignatura_id": a.asignatura_id, "correo": a.correo}
         for a in autorizados
     ]}
 
@@ -965,13 +959,11 @@ def crear_alumno_autorizado_endpoint(asignatura_id: int, datos: AlumnoAutorizado
     if(not datos.correo.endswith("@um.es")):
         raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
     try:
-        nuevo = crear_alumno_autorizado(asignatura_id, datos.nombre, datos.correo, datos.dni)
+        nuevo = crear_alumno_autorizado(asignatura_id, datos.correo)
         return {
             "id": nuevo.id,
             "asignatura_id": nuevo.asignatura_id,
-            "nombre": nuevo.nombre,
             "correo": nuevo.correo,
-            "dni": nuevo.dni,
         }
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -983,7 +975,7 @@ def crear_alumno_autorizado_endpoint(asignatura_id: int, datos: AlumnoAutorizado
 @app.put(
     "/api/docente/alumnos-autorizados/{autorizado_id}",
     summary="Editar alumno autorizado",
-    description="Actualiza nombre, correo y/o DNI de una autorizacion existente.",
+    description="Actualiza el correo de una autorizacion existente.",
     response_model=AlumnoAutorizadoItem,
     tags=["docente"],
     responses={
@@ -1001,13 +993,11 @@ def actualizar_alumno_autorizado_endpoint(autorizado_id: int, datos: AlumnoAutor
     if not any(a.id == autorizado.asignatura_id for a in asignaturas_docente):
         raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
     try:
-        actualizado = actualizar_alumno_autorizado(autorizado_id, datos.nombre, datos.correo, datos.dni)
+        actualizado = actualizar_alumno_autorizado(autorizado_id, datos.correo)
         return {
             "id": actualizado.id,
             "asignatura_id": actualizado.asignatura_id,
-            "nombre": actualizado.nombre,
             "correo": actualizado.correo,
-            "dni": actualizado.dni,
         }
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))

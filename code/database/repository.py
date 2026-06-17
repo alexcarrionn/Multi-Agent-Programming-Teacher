@@ -612,11 +612,9 @@ def import_alumnos_autorizados_excel(asignatura_id: int, df) -> int:
     insertador = 0
     try:
         for idx, row in df.iterrows():
-            nombre = None if pd.isna(row.get("Nombre")) else str(row.get("Nombre")).strip()
             correo = None if pd.isna(row.get("Correo electrónico")) else str(row.get("Correo electrónico")).strip()
-            dni = None if pd.isna(row.get("DNI")) else str(row.get("DNI")).strip()
 
-            if not nombre or not correo:
+            if not correo:
                 continue
 
             existente = session.query(AlumnoAulaAsignatura).filter(
@@ -624,15 +622,12 @@ def import_alumnos_autorizados_excel(asignatura_id: int, df) -> int:
                 AlumnoAulaAsignatura.correo == correo
             ).first()
 
-            if existente is not None:
-                existente.nombre = nombre
-                existente.dni = dni
-            else:
+            # El correo es la unica columna: si ya existe la autorizacion no hay nada
+            # que actualizar; solo creamos las que falten.
+            if existente is None:
                 nuevo = AlumnoAulaAsignatura(
                     asignatura_id=asignatura_id,
-                    nombre=nombre,
                     correo=correo,
-                    dni=dni
                 )
                 session.add(nuevo)
                 insertador += 1
@@ -661,7 +656,7 @@ def import_alumnos_autorizados_excel(asignatura_id: int, df) -> int:
     finally:
         session.close()
 
-def crear_alumno_autorizado(asignatura_id: int, nombre: str, correo: str, dni: str | None = None) -> AlumnoAulaAsignatura:
+def crear_alumno_autorizado(asignatura_id: int, correo: str) -> AlumnoAulaAsignatura:
       session = SessionLocal()
       try:
           existing = session.query(AlumnoAulaAsignatura).filter(
@@ -669,15 +664,12 @@ def crear_alumno_autorizado(asignatura_id: int, nombre: str, correo: str, dni: s
               AlumnoAulaAsignatura.correo == correo,
           ).first()
           if existing is not None:
-              existing.nombre = nombre
-              existing.dni = dni
+              # El correo es la unica columna: si ya existe, no hay nada que actualizar.
               resultado = existing
-          else: 
+          else:
                 nuevo = AlumnoAulaAsignatura(
                     asignatura_id=asignatura_id,
-                    nombre=nombre,
                     correo=correo,
-                    dni=dni,
                 )
                 session.add(nuevo)
                 resultado = nuevo
@@ -711,7 +703,7 @@ def get_alumnos_autorizados(asignatura_id: int) -> list[AlumnoAulaAsignatura]:
       try:
           return session.query(AlumnoAulaAsignatura).filter(
               AlumnoAulaAsignatura.asignatura_id == asignatura_id
-          ).order_by(AlumnoAulaAsignatura.nombre).all()
+          ).order_by(AlumnoAulaAsignatura.correo).all()
       finally:
           session.close()
 
@@ -724,8 +716,8 @@ def get_alumno_autorizado_by_id(autorizado_id: int) -> AlumnoAulaAsignatura | No
       finally:
           session.close()
 
-def actualizar_alumno_autorizado(id: int, nombre: str, correo: str, dni: str | None = None) -> AlumnoAulaAsignatura:
-      # busca por id; si no existe ValueError; actualiza nombre/correo/dni; commit; return
+def actualizar_alumno_autorizado(id: int, correo: str) -> AlumnoAulaAsignatura:
+      # busca por id; si no existe ValueError; actualiza el correo; commit; return
         session = SessionLocal()
         try:
             existente = session.query(AlumnoAulaAsignatura).filter(
@@ -744,9 +736,7 @@ def actualizar_alumno_autorizado(id: int, nombre: str, correo: str, dni: str | N
                 if conflicto is not None:
                     raise ValueError(_("ANOTHER STUDENT ALREADY AUTHORIZED WITH THIS EMAIL"))
 
-            existente.nombre = nombre
             existente.correo = correo
-            existente.dni = dni
             session.commit()
             session.refresh(existente)
             return existente

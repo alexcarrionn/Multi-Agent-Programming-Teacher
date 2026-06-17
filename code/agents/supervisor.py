@@ -5,6 +5,7 @@ from agents.agentType import AgentType
 from typing import Literal
 from rag.retriever import create_retriever
 from prompts import get_prompt
+from agents.historial import ultimo_mensaje_usuario
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from config.settings import settings
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -158,7 +159,9 @@ def nodo_supervisor(state):
 
     chain = prompt_supervisor | llm
     response = chain.invoke({
-        "mensajes": state["mensajes"][-6:],
+        #Solo el mensaje actual del alumno: con la ventana [-6:] el supervisor veia
+        #las peticiones previas del usuario y las mimetizaba en su respuesta FINISH.
+        "mensajes": ultimo_mensaje_usuario(state["mensajes"]),
         "asignatura": asignatura,
     })
 

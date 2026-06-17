@@ -10,6 +10,10 @@ const nextConfig = {
   // Si en el futuro hay un nginx delante, que se encargue el de comprimir lo demas.
   compress: false,
 
+  experimental: {
+    proxyClientMaxBodySize: "50mb",
+  },
+
   async rewrites() {
     const backend = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:8000";
     console.log("[next.config] rewrites() backend =", backend);

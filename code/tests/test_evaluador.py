@@ -10,9 +10,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
-from langchain_groq import ChatGroq
+#from langchain_groq import ChatGroq
 from agents.evaluador import EvaluadorAgent
-import config.settings as settings
+from config.settings import settings
 
 
 # Inicializamos el LLM y el agente
@@ -188,11 +188,20 @@ def test_estructura_respuesta():
         assert "mensajes" in result, "Falta la clave 'mensajes'"
         assert "puntuacion" in result, "Falta la clave 'puntuacion'"
         assert isinstance(result["mensajes"], list), "'mensajes' no es una lista"
-        assert isinstance(result["puntuacion"], str), "'puntuacion' no es un string"
-        assert result["puntuacion"] == result["mensajes"][0].content, \
-            "'puntuacion' no coincide con el contenido del mensaje"
-        print("  Claves presentes: mensajes, puntuacion")
-        print("  Tipos correctos: mensajes=list, puntuacion=str")
+        # La puntuacion es ahora un float (0-10) extraido del texto con regex, o None
+        # si el LLM no devolvio una nota en formato "X/10".
+        assert result["puntuacion"] is None or isinstance(result["puntuacion"], float), \
+            "'puntuacion' debe ser float o None"
+        if result["puntuacion"] is not None:
+            assert 0 <= result["puntuacion"] <= 10, "'puntuacion' fuera del rango 0-10"
+        # El contenido del mensaje es la evaluacion ya limpia de marcadores de control.
+        contenido = result["mensajes"][0].content
+        assert isinstance(contenido, str) and len(contenido) > 0, "El mensaje está vacío"
+        # El evaluador tambien expone los campos de cambio de nivel en el estado.
+        for clave in ("cambio_nivel", "nuevo_nivel", "justificacion_cambio_nivel"):
+            assert clave in result, f"Falta la clave '{clave}'"
+        print("  Claves presentes: mensajes, puntuacion, cambio_nivel, nuevo_nivel, justificacion_cambio_nivel")
+        print(f"  Tipos correctos: mensajes=list, puntuacion={type(result['puntuacion']).__name__}")
         print(">> PASS\n")
         return True
     except Exception as e:

@@ -90,18 +90,24 @@ export default function Header() {
     <header className="z-50 flex h-16 w-full items-center justify-between bg-white/80 px-4 backdrop-blur-md sm:px-6 md:h-20 relative">
       <Link href="/" className="flex items-center gap-3">
         <Image src="/logo.svg" alt="Logo" width={36} height={36} priority />
-        <span className="text-2xl font-bold text-gray-800">Codi</span>
+        <span className="text-xl sm:text-2xl font-bold text-gray-800">Codi</span>
       </Link>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         {!isLoggedIn ? (
           <>
             <SelectorIdioma />
-            <Button asChild variant="outline" className="btn-header-login">
-              <Link href="/auth/login">{t("header_login")}</Link>
+              <Button asChild variant="outline" className="btn-header-login">
+              <Link href="/auth/login">
+                <span className="sm:hidden">{t("header_login_short")}</span>
+                <span className="hidden sm:inline">{t("header_login")}</span>
+              </Link>
             </Button>
             <Button asChild variant="outline" className="btn-header">
-              <Link href="/auth/register">{t("header_register")}</Link>
+              <Link href="/auth/register">
+                <span className="sm:hidden">{t("header_register_short")}</span>
+                <span className="hidden sm:inline">{t("header_register")}</span>
+              </Link>
             </Button>
           </>
         ) : (
@@ -112,7 +118,9 @@ export default function Header() {
                 <select
                   value={asignaturaSlug}
                   onChange={handleAsignaturaChange}
-                  className="appearance-none rounded-xl border border-gray-200 bg-white/70 pl-4 pr-9 py-2 text-sm font-medium text-gray-700 shadow-sm cursor-pointer hover:border-blue-300 hover:bg-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-150 max-w-[260px] truncate"
+                   className="appearance-none rounded-xl border border-gray-200 bg-white/70 pl-4 pr-9 py-2 text-sm font-medium text-gray-700 shadow-sm cursor-pointer
+                      hover:border-blue-300 hover:bg-white focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-150 max-w-[140px]
+                      sm:max-w-[260px] truncate"
                 >
                   {asignaturas.map((a) => (
                     <option key={a.id} value={slugify(a.nombre)}>

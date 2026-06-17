@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from prompts import get_prompt
+from agents.historial import ultimo_mensaje_usuario
 
 class CriticoAgent:
 
@@ -23,7 +24,8 @@ class CriticoAgent:
         chain = prompt | self.llm
         #Contruimos la respuesta del agente, incluyendo los mensajes previos, el nivel del usuario y el contexto relevante
         response = chain.invoke({
-            "mensajes": state["mensajes"][-6:],
+            #Solo el mensaje actual del alumno (ver agents/historial.py).
+            "mensajes": ultimo_mensaje_usuario(state["mensajes"]),
             #coge el nivel del usuario del estado, si no esta definido se asume que es principiante
             "user_level": state.get("user_level", "principiante"),
             #coge el enunciado del estado, si no esta definido se asume que no hay enunciado relevante

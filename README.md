@@ -225,13 +225,25 @@ BREVO_SMTP_LOGIN=tu_login
 BREVO_SMTP_KEY=tu_clave
 BREVO_SENDER_EMAIL=noreply@tu-dominio.com
 BREVO_SENDER_NAME=Codi
-FRONTEND_URL=http://localhost:3000  # base URL del frontend
+FRONTEND_URL=http://localhost:3000
+#FRONTEND_URL=https://${DNS_DOMAIN}
 
 # ─── LangSmith (opcional, trazas) ───────────────────────────────────────────
 LANGSMITH_TRACING=false
 LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 LANGSMITH_API_KEY=tu_langsmith_api_key
 LANGSMITH_PROJECT=mi-proyecto
+
+#----------------------------------------------
+#   PUERTOS DEL HOST (mapeo docker-compose)
+#----------------------------------------------
+WEB_PORT=3000
+API_PORT=8000
+
+#----------------------------------------------
+#   DNS DOMAIN
+#----------------------------------------------
+DNS_DOMAIN=
 ```
 
 ---
@@ -452,7 +464,7 @@ Los cambios se sincronizan en caliente con la tabla `docentes_aula`.
 
 Desde el panel del docente. Cada docente puede:
 
-- Importar un Excel con la misma estructura (`Nombre`, `Correo electrónico`, `DNI`). UPSERT: actualiza los existentes y añade los nuevos sin tocar los manuales.
+- Importar un Excel con la columna `Correo electrónico`. UPSERT por correo: añade los que falten sin duplicar los existentes.
 - Añadir, editar o borrar autorizaciones individualmente.
 - Consultar quién está autorizado y quién ya tiene cuenta.
 

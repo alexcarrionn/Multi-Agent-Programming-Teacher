@@ -90,7 +90,7 @@ const FunctionDisplay = ({ toolCall }) => {
     );
 };
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, isThinking = false }) {
     const isUser = message.role === 'user';
     const [copied, setCopied] = useState(false);
 
@@ -131,12 +131,20 @@ export default function MessageBubble({ message }) {
                 )}>
                     {isUser ? (
                         <p className="whitespace-pre-wrap">{message.content}</p>
+                      ) : (message.content === "" && isThinking) ? (
+                            /* Codi está pensando: puntos suspensivos animados */
+                            <div className="flex gap-1.5 py-1">
+                                <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
                     ) : (
                         /* ── Corrección react-markdown v9 ──────────────────────────
                            - className ya no se pasa al componente, va en un div wrapper
                            - el prop `inline` en code fue eliminado, se detecta con `node`
                         ─────────────────────────────────────────────────────────── */
                         <div className="prose prose-sm max-w-none dark:prose-invert [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                            
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{

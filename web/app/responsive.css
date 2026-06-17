@@ -1,0 +1,29 @@
+/* Responsive transversal para Codi (Tailwind v4).
+   El layout responsive de cada página se hace con prefijos Tailwind
+   (sm:/md:/lg:) en el JSX. Este archivo solo tiene reglas transversales:
+   accesibilidad, hover táctil e impresión.*/
+
+/* ---- Accesibilidad: usuarios que prefieren menos movimiento ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Hover solo en dispositivos con ratón (no táctiles) ---- */
+@media (hover: hover) {
+  .btn-suggestion:hover { transform: translateY(-2px); }
+}
+/* En táctil evitamos que el gradiente se quede "pegado" tras el tap */
+@media (hover: none) {
+  .btn-suggestion:hover::before,
+  .btn-codi-animated:hover::before { top: -100%; }
+}
+
+/* ---- Impresión ---- */
+@media print {
+  .btn-suggestion, .btn-codi-animated, .btn-header-login { display: none; }
+}

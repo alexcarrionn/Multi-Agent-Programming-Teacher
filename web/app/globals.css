@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./responsive.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -189,12 +190,13 @@
     .btn-header-login {
     position: relative;
     width: auto;
-    height: 45px;
-    padding: 0 20px;
+    /* 32px (h-8) + font 13px para casar con el Button outline shadcn size="sm" del header */
+    height: 32px;
+    padding: 0 12px;
     background: transparent;
     border-radius: 40px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
     /* Borde en el azul principal de Codi */
     border: 2px solid #2563EB; 
@@ -226,18 +228,24 @@
     .btn-suggestion {
     position: relative;
     width: 100%;
-    height: 50px;
+    /* Altura flexible: crece si el texto ocupa varias lineas, en vez de recortarse */
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    /* Padding para que el texto no toque los bordes redondeados */
+    padding: 0.75rem 1.25rem;
+    line-height: 1.25;
     background: transparent;
-    border-radius: 40px;
+    border-radius: 24px;
     cursor: pointer;
     font-size: 16px;
     font-weight: 600;
-    /* Borde en el azul principal de Codi */
-   
     overflow: hidden;
     z-index: 1;
     /* El texto siempre blanco para contrastar con los colores vivos */
-    color: #ffffff !important; 
+    color: #ffffff !important;
     transition: all 0.3s ease;
   }
 

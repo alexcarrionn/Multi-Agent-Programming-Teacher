@@ -119,7 +119,7 @@ export default function DocenteDashboard() {
   return (
     <main className="min-h-screen bg-gray-100">
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image src="/logo.svg" alt="Logo de Codi" width={32} height={32} priority />
             <span className="font-semibold text-gray-900">Codi · {t("docente_panel")}</span>
@@ -138,14 +138,14 @@ export default function DocenteDashboard() {
         </div>
       </header>
 
-      <section className="max-w-6xl mx-auto px-6 py-8">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <h1 className="text-2xl font-bold text-gray-900">{t("docente_my_subjects")}</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" className="w-50" onClick={() => setJoinOpen(true)}>
+           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setJoinOpen(true)}>
               <LogIn /> {t("docente_join_subject")}
             </Button>
-            <Button className="btn-codi-animated w-50" onClick={() => setCreateOpen(true)}>
+            <Button className="btn-codi-animated w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
               <Plus /> {t("docente_create_subject")}
             </Button>
           </div>

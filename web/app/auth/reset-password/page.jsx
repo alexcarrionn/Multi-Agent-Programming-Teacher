@@ -68,8 +68,8 @@ function ResetPasswordInner() {
 
   if (!token) {
     return (
-      <main className="relative flex min-h-screen flex-col items-center justify-center p-6 bg-gray-100">
-        <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center gap-4">
+      <main className="relative flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-gray-100">
+        <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center gap-4">
           <Image src="/logo.svg" alt="Logo de Codi" width={48} height={48} priority />
           <h1 className="text-xl font-bold text-gray-900">{t("reset_invalid_title")}</h1>
           <p className="text-sm text-gray-500 text-center">{t("reset_invalid_msg")}</p>
@@ -82,11 +82,11 @@ function ResetPasswordInner() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center p-6 bg-gray-100">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-gray-100">
+      <div className="w-full max-w-md bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-100">
         <div className="flex flex-col items-center mb-8">
           <Image src="/logo.svg" alt="Logo de Codi" width={48} height={48} priority className="mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900">{t("reset_title")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t("reset_title")}</h1>
           <p className="text-sm text-gray-500 mt-2 text-center">{t("reset_subtitle")}</p>
         </div>
 

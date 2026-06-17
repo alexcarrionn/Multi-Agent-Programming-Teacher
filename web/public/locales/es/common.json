@@ -79,6 +79,8 @@
   "open_user_menu": "Abrir menú de usuario",
   "header_login": "Iniciar sesión",
   "header_register": "Registrarse",
+  "header_login_short": "Entrar",
+  "header_register_short": "Registro",
   "header_profile": "Tu perfil",
   "header_logout": "Cerrar sesión",
 
@@ -87,7 +89,7 @@
   "welcome_login_prompt": "Inicia sesión para comenzar a interactuar con Codi.",
   "welcome_suggestion_1": "Explícame un concepto básico sobre esta asignatura",
   "welcome_suggestion_2": "Ponme un ejercicio para practicar",
-  "welcome_suggestion_3": "Muéstrame un ejemplo de código sobre la asignatura",
+  "welcome_suggestion_3": "Muéstrame un ejemplo sobre la asignatura",
 
   "chat_placeholder": "Escribe tu mensaje...",
   "chat_loading_placeholder": "Codi está escribiendo...",
@@ -134,9 +136,7 @@
   "docente_import_success_msg": "Insertados: {{insertados}} alumnos en la asignatura. El archivo Excel ha sido procesado exitosamente.",
   "docente_add_student_dialog_title": "Añadir alumno a la asignatura",
   "docente_add_student_dialog_desc": "Autoriza a un alumno individualmente. Si ya tiene cuenta en Codi, se matriculará automáticamente; si no, podrá registrarse con su correo.",
-  "docente_add_student_name_label": "Nombre completo",
   "docente_add_student_email_label": "Correo electrónico",
-  "docente_add_student_dni_label": "DNI (opcional)",
   "docente_add_student_submit": "Añadir alumno",
   "docente_add_student_success_title": "Alumno añadido",
   "docente_add_student_success_msg": "{{correo}} ha sido autorizado en la asignatura.",
