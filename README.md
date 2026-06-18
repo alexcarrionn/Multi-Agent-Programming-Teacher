@@ -43,7 +43,8 @@
   - Unión a asignaturas existentes con código de invitación.
   - Gestión de alumnos autorizados (CRUD + import Excel + alta individual con auto-matrícula si ya tienen cuenta).
   - Eliminar alumnos de la asignatura.
-  - **Ficha del alumno** con su progreso académico e interacciones, **filtrables por asignatura**.
+  - **Ficha del alumno** con su progreso académico y sus últimas interacciones (con enlace al panel global ya filtrado por ese alumno).
+  - **Panel de interacciones de alumnos** (`/docente/interacciones`): vista global de todas las interacciones de sus alumnos, **filtrable por asignatura y por alumno**, ordenable por fecha y con **exportación a Excel** (`.xlsx`) que respeta los filtros activos.
   - **Gestión de documentación del RAG**: subir/listar/eliminar archivos por asignatura desde la UI, separados por tipo (teoría / prácticas).
 - **Auto-matrícula**: al registrar a un alumno a través del Excel o al autorizarlo individualmente, queda matriculado automáticamente en las asignaturas donde su correo aparezca como autorizado.
 - **Recuperación de contraseña por email** vía Brevo SMTP, con tokens temporales.
@@ -88,7 +89,7 @@ FastAPI (main.py)
 5. El agente seleccionado (con el prompt del tipo) genera la respuesta con ese contexto.
 6. Si tras el educador el supervisor detectó que el alumno pedía una pregunta de autoevaluación (`skip_demostrador=True`), el grafo salta al final. En caso contrario, el demostrador encadena un ejemplo.
 7. Si es una evaluación, el Crítico añade retroalimentación y se guarda el progreso en MySQL.
-8. La interacción completa se almacena en `interacciones` para el historial del alumno y la consulta del docente filtrada por asignatura.
+8. La interacción completa se almacena en `interacciones` para el historial del alumno, la ficha del alumno y el panel global de interacciones del docente (filtrable por asignatura y alumno, y exportable a Excel).
 
 **Convención del slug**: la asignatura viaja por el sistema como un slug calculado con `nombre.lower().replace(' ', '_')`. Lo aplican coherentemente: el frontend del alumno, la creación de carpetas en `data/<slug>/`, las funciones de guardado (`guardar_progreso`, `guardar_interaccion`), los endpoints del docente y el helper `get_asignatura_by_slug` del repo que resuelve el `tipo`.
 
@@ -425,7 +426,8 @@ El sistema diferencia dos roles mediante un campo `rol` en el JWT.
   - **Vista de asignatura** (`/docente/asignaturas/[id]`): cabecera con código + tipo + acciones + tabla de alumnos matriculados + tabla de documentación del agente.
   - **Alumnos autorizados**: importar Excel (UPSERT), añadir individualmente con auto-matrícula si ya tiene cuenta, editar, borrar.
   - **Alumnos matriculados**: listar quienes ya tienen cuenta y están matriculados; eliminarlos de la asignatura.
-  - **Ficha del alumno** (`/docente/alumnos/[id]`): progreso académico e interacciones, **filtrados por la asignatura** desde la que se accedió.
+  - **Ficha del alumno** (`/docente/alumnos/[id]`): progreso académico y sus últimas interacciones (filtradas por la asignatura desde la que se accedió), con enlace al panel global de interacciones ya filtrado por ese alumno.
+  - **Panel de interacciones** (`/docente/interacciones`): todas las interacciones de sus alumnos en un solo lugar, con filtros por asignatura y alumno, orden por fecha y **exportación a Excel** respetando los filtros. Es la fuente única de interacciones (la ficha del alumno solo muestra las últimas y enlaza aquí).
   - **Documentación del RAG por asignatura**: subir/listar/eliminar (.pdf, .txt, .docx, .md), separados por tipo (teoría / prácticas). Indexado asíncrono en Qdrant vía watcher.
 - La autorización se valida en cada endpoint: un docente solo puede ver/modificar lo que pertenece a sus asignaturas.
 
@@ -517,6 +519,8 @@ Desde el panel del docente. Cada docente puede:
 | `GET` | `/api/docente/alumnos/{id}` | Datos básicos del alumno (id, nombre, email, nivel) |
 | `GET` | `/api/docente/alumnos/{id}/progreso?asignatura_id=N` | Historial de evaluaciones; `asignatura_id` filtra opcionalmente |
 | `GET` | `/api/docente/alumnos/{id}/interacciones?asignatura_id=N` | Historial de chat; `asignatura_id` filtra opcionalmente |
+| `GET` | `/api/docente/interacciones?asignatura_id=N&alumno_id=M` | Todas las interacciones de los alumnos del docente; filtros opcionales por asignatura y alumno |
+| `GET` | `/api/docente/interacciones/export?asignatura_id=N&alumno_id=M` | Exporta las interacciones a Excel (`.xlsx`) respetando los filtros |
 
 ### Panel del docente — alumnos autorizados
 
