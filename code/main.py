@@ -46,7 +46,8 @@ from database.repository import (
     update_password,
     update_password_docente,
     eliminar_cuenta_alumno,
-    get_interacciones, 
+    get_interacciones,
+    get_interacciones_por_docente,
     import_alumnos_autorizados_excel,
     get_alumnos_autorizados,
     get_alumno_autorizado_by_id,
@@ -248,6 +249,19 @@ class InteraccionItem(BaseModel):
 
 class InteraccionesResponse(BaseModel):
     interacciones: list[InteraccionItem]
+
+class InteraccionDocenteItem(BaseModel):
+    alumno_id: int
+    alumno_nombre: str | None
+    alumno_email: str | None
+    asignatura: str | None
+    mensaje_usuario: str | None
+    respuesta_agente: str | None
+    tipo_interaccion: str | None
+    fecha: str | None
+
+class InteraccionesDocenteResponse(BaseModel):
+    interacciones: list[InteraccionDocenteItem]
 
 class AsignaturasResponse(BaseModel):
     asignaturas: list[str]
@@ -1125,6 +1139,96 @@ def listar_asignaturas_alumno(current_user: dict = Depends(get_current_user)):
         {"id": a.id, "nombre": a.nombre, "codigo": a.codigo, "codigo_invitacion": a.codigo_invitacion, "tipo": a.tipo}
         for a in asignaturas
     ]}
+
+#Endpoint para que el docente vea todas las interacciones de sus alumnos (no alumno a alumno)
+@app.get(
+    "/api/docente/interacciones",
+    summary="Todas las interacciones de los alumnos del docente",
+    description="Devuelve todas las interacciones de los alumnos en las asignaturas que imparte el docente. Opcionalmente filtrable por asignatura_id.",
+    response_model=InteraccionesDocenteResponse,
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "La asignatura no pertenece al docente"},
+    }
+)
+def listar_interacciones_docente(asignatura_id: int | None = None, current_user: dict = Depends(get_current_docente)):
+    #Si se filtra por asignatura, comprobamos que pertenece al docente actual.
+    if asignatura_id is not None:
+        asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+        if not any(a.id == asignatura_id for a in asignaturas_docente):
+            #Sino se manda una excepcion 403, ya que el docente no tiene acceso a esa asignatura.
+            raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    #Se obtienen las interacciones de los alumnos del docente, filtradas por asignatura si se proporcionó.
+    filas = get_interacciones_por_docente(current_user["docente_id"], asignatura_id=asignatura_id)
+    #Se devuelve un diccionario con la clave "interacciones" que contiene una lista de diccionarios, 
+    # cada uno representando una interacción con los detalles del alumno, asignatura y contenido de la interacción.
+    return {"interacciones": [
+        {
+            "alumno_id": inter.alumno_id,
+            "alumno_nombre": nombre,
+            "alumno_email": email,
+            "asignatura": asignatura_nombre,
+            "mensaje_usuario": inter.mensaje_usuario,
+            "respuesta_agente": inter.respuesta_agente,
+            "tipo_interaccion": inter.tipo_interaccion,
+            "fecha": inter.fecha_interaccion.isoformat() if inter.fecha_interaccion else None,
+        }
+        #por cada fila obtenida de la base de datos, se desestructura en inter (la interacción),
+        #nombre (nombre del alumno), email (correo del alumno) y asignatura_nombre (nombre de la asignatura).
+        for (inter, nombre, email, asignatura_nombre) in filas
+    ]}
+
+#Endpoint para exportar a Excel las interacciones (respeta los filtros de asignatura y alumno)
+@app.get(
+    "/api/docente/interacciones/export",
+    summary="Exportar interacciones a Excel",
+    description="Descarga un .xlsx con las interacciones de los alumnos del docente. Filtrable por asignatura_id y alumno_id.",
+    tags=["docente"],
+    responses={
+        401: {"description": "No autenticado"},
+        403: {"description": "La asignatura no pertenece al docente"},
+    }
+)
+#Se le pasan como parametros opcionales los filtros que el docente puede aplicar 
+def exportar_interacciones_docente(asignatura_id: int | None = None,alumno_id: int | None = None,current_user: dict = Depends(get_current_docente),):
+    #Si la asinatura no pertence al docente, se lanza una excepcion 403
+    if asignatura_id is not None:
+        asignaturas_docente = get_asignaturas_por_docente(current_user["docente_id"])
+        if not any(a.id == asignatura_id for a in asignaturas_docente):
+            raise HTTPException(status_code=403, detail=_("ACCESS TO ASSIGNMENT DENIED"))
+    #Se obtienen las interacciones de los alumnos del docente, filtradas por asignatura y alumno si se proporcionaron.
+    filas = get_interacciones_por_docente(current_user["docente_id"], asignatura_id=asignatura_id)
+    if alumno_id is not None:
+        filas = [f for f in filas if f[0].alumno_id == alumno_id]
+
+    #Una fila por interaccion; lo volcamos a xlsx en memoria con pandas + openpyxl.
+    registros = [
+        {
+            "Alumno": nombre,
+            "Email": email,
+            "Asignatura": asignatura_nombre,
+            "Tipo": inter.tipo_interaccion,
+            "Fecha": inter.fecha_interaccion.strftime("%Y-%m-%d %H:%M:%S") if inter.fecha_interaccion else "",
+            "Mensaje del alumno": inter.mensaje_usuario,
+            "Respuesta de Codi": inter.respuesta_agente,
+        }
+        for (inter, nombre, email, asignatura_nombre) in filas
+    ]
+    #Creamos un DataFrame de pandas con los registros obtenidos, especificando las columnas que queremos incluir en el Excel.
+    df = pd.DataFrame(registros, columns=["Alumno", "Email", "Asignatura", "Tipo", "Fecha", "Mensaje del alumno", "Respuesta de Codi"])
+    #con io.BytesIO() creamos un buffer en memoria donde se escribira el archivo Excel, sin necesidad de guardarlo en disco.
+    output = io.BytesIO()
+    #Se utiliza pd.ExcelWriter con el engine "openpyxl" para escribir el DataFrame en un archivo Excel en memoria.
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Interacciones")
+    output.seek(0)
+    #devolvemos la respuesta HTTP con el contenido del archivo Excel, indicando el tipo de contenido y el nombre del archivo para la descarga.
+    return Response(
+        content=output.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="interacciones_codi.xlsx"'},
+    )
 
 
 # --- Helpers para gestion de documentacion del RAG ---
