@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import { sileo } from "sileo";
-import { Plus, LogIn, Copy, Check } from "lucide-react";
+import { Plus, LogIn, Copy, Check, MessageSquare } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useTranslation } from "react-i18next";
 import "@/lib/i18n";
@@ -142,6 +142,9 @@ export default function DocenteDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <h1 className="text-2xl font-bold text-gray-900">{t("docente_my_subjects")}</h1>
            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.push("/docente/interacciones")}>
+              <MessageSquare /> {t("docente_interactions_view")}
+            </Button>
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setJoinOpen(true)}>
               <LogIn /> {t("docente_join_subject")}
             </Button>

@@ -458,6 +458,24 @@ def get_interacciones(alumno_id: int, asignatura_id: int | None = None) -> list[
     finally:
         session.close()
 
+def get_interacciones_por_docente(docente_id: int, asignatura_id: int | None = None):
+    """Devuelve todas las interacciones de los alumnos en las asignaturas del docente.
+    """
+    session = SessionLocal()
+    try:
+        query = (
+            session.query(Interaccion, Alumno.nombre, Alumno.email, Asignatura.nombre)
+            .join(DocenteAsignatura, DocenteAsignatura.asignatura_id == Interaccion.asignatura_id)
+            .join(Alumno, Alumno.id == Interaccion.alumno_id)
+            .join(Asignatura, Asignatura.id == Interaccion.asignatura_id)
+            .filter(DocenteAsignatura.docente_id == docente_id)
+        )
+        if asignatura_id is not None:
+            query = query.filter(Interaccion.asignatura_id == asignatura_id)
+        return query.order_by(Interaccion.fecha_interaccion.desc()).all()
+    finally:
+        session.close()
+
 #definimos la funcion para poder obtener las asignaturas por cliente
 def get_asignaturas_por_docente(docente_id: int) -> list[Asignatura]:
       session = SessionLocal()

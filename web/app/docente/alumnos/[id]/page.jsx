@@ -164,16 +164,31 @@ export default function AlumnoDetallePage() {
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                {t("docente_alumno_interacciones_title")}
-              </h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {t("docente_alumno_interacciones_title")}
+                </h2>
+                {interacciones.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/docente/interacciones?alumno_id=${id}${asignaturaId ? `&asignatura_id=${asignaturaId}` : ""}`
+                      )
+                    }
+                    className="btn-codi-animated w-auto px-5 text-sm"
+                  >
+                    {t("docente_alumno_interacciones_view_all")}
+                  </button>
+                )}
+              </div>
               {interacciones.length === 0 ? (
                 <div className="bg-white rounded-xl border border-gray-200 p-6">
                   <p className="text-sm text-gray-500">{t("docente_alumno_interacciones_empty")}</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {interacciones.map((i, idx) => (
+                  {interacciones.slice(0, 5).map((i, idx) => (
                     <div
                       key={idx}
                       className="bg-white rounded-xl border border-gray-200 p-4"
