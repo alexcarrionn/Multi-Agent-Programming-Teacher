@@ -1,9 +1,13 @@
 import os
 import sys
 from pathlib import Path
+from enum import Enum
 from fastapi import Depends, FastAPI, Form, HTTPException, Response, UploadFile, File
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from watchfiles  import watch, Change
 import threading
 from contextlib import asynccontextmanager
@@ -14,6 +18,7 @@ import secrets
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from config.settings import settings
+from config.rate_limit import limiter
 from email.utils import formataddr
 import io
 import pandas as pd
@@ -146,6 +151,75 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# --- Rate limiting (slowapi) ---
+# Registramos el limitador en el estado de la app (lo usan el middleware y los
+# decoradores @limiter.limit), y un handler 429 con mensaje i18n.
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    # Reusamos la inyeccion de cabeceras de slowapi (Retry-After, X-RateLimit-*)
+    # para que el cliente sepa cuanto debe esperar.
+    response = JSONResponse(status_code=429, content={"detail": _("TOO MANY REQUESTS")})
+    return request.app.state.limiter._inject_headers(response, request.state.view_rate_limit)
+
+
+def _mensaje_validacion(exc: RequestValidationError) -> str:
+    """Traduce el primer error de validacion de Pydantic a un mensaje claro i18n.
+
+    Asi el usuario ve "La contraseña debe tener al menos 8 caracteres" en vez de un
+    generico, sin filtrar detalles internos del esquema. Si no reconocemos el caso,
+    caemos a un mensaje generico.
+    """
+    errores = exc.errors()
+    if not errores:
+        return _("INVALID INPUT DATA")
+    err = errores[0]
+    loc = err.get("loc") or ()
+    campo = loc[-1] if loc else ""
+    tipo = err.get("type", "")
+
+    if campo in ("password", "new_password"):
+        if tipo == "string_too_short":
+            return _("PASSWORD TOO SHORT")
+        if tipo == "string_too_long":
+            return _("PASSWORD TOO LONG")
+        if tipo == "missing":
+            return _("FIELD REQUIRED")
+    if campo in ("email", "correo", "alumno_email"):
+        if tipo == "missing":
+            return _("FIELD REQUIRED")
+        return _("EMAIL INVALID")
+    if campo == "nivel":
+        return _("INVALID LEVEL")
+    if campo == "tipo":
+        return _("INVALID SUBJECT TYPE")
+    if campo == "nombre":
+        # value_error solo lo lanza el validador anti-traversal de AsignaturaCreate.
+        return _("INVALID ASIGNATURA NAME") if tipo == "value_error" else _("FIELD REQUIRED")
+    if campo == "asignatura":
+        return _("INVALID ASIGNATURA NAME")
+    if campo == "message" and tipo == "string_too_long":
+        return _("MESSAGE TOO LONG")
+    if tipo == "missing":
+        return _("FIELD REQUIRED")
+    return _("INVALID INPUT DATA")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Por defecto FastAPI devuelve 422 con `detail` como LISTA de errores; el frontend
+    # espera `detail` como string. Devolvemos un mensaje i18n concreto segun el campo.
+    return JSONResponse(status_code=422, content={"detail": _mensaje_validacion(exc)})
+
+
+# SlowAPIMiddleware aplica el limite global por defecto a TODAS las rutas. Lo
+# añadimos ANTES que el cors_middleware de abajo para que el CORS quede como
+# middleware mas externo: asi las respuestas 429 conservan las cabeceras CORS y
+# el navegador las ve como "demasiadas peticiones" y no como error de CORS.
+app.add_middleware(SlowAPIMiddleware)
+
 #configuramos CORS para permitir peticiones desde el frontend, en este caso desde localhost:3000, pero esto se puede cambiar cuando se despliegue el frontend en producción
 # main.py — sustituye el CORSMiddleware por esto:
 """
@@ -164,6 +238,13 @@ app.add_middleware(
 async def cors_middleware(request: Request, call_next):
     origin = request.headers.get("origin", "")
     response = await call_next(request)
+    # Headers de seguridad en TODAS las respuestas del backend (incluidos 4xx/5xx,
+    # porque este middleware es el mas externo). El API solo sirve JSON/SSE, asi que
+    # un CSP minimo y estricto basta; el CSP de la app lo pone Next.js.
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     if origin.endswith(".trycloudflare.com") or origin == "http://localhost:3000":
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
@@ -172,55 +253,89 @@ async def cors_middleware(request: Request, call_next):
     return response
 # --- Modelos de request ---
 
+# Enums para campos que solo admiten un conjunto cerrado de valores. Cualquier
+# otro valor lo rechaza Pydantic (422) antes de llegar a la logica.
+class NivelEnum(str, Enum):
+    principiante = "principiante"
+    intermedio = "intermedio"
+    avanzado = "avanzado"
+
+class TipoAsignaturaEnum(str, Enum):
+    programacion = "programacion"
+    formacion_basica = "formacion_basica"
+
+# Secuencias que permiten path traversal o inyeccion en rutas / nombres de
+# coleccion de Qdrant. El nombre de asignatura se convierte en carpeta y en
+# nombre de coleccion, asi que hay que bloquearlas en el origen.
+_SECUENCIAS_PELIGROSAS = ("/", "\\", "..", "\x00")
+
+def _rechazar_traversal(valor: str) -> str:
+    if any(s in valor for s in _SECUENCIAS_PELIGROSAS):
+        raise ValueError("contiene caracteres no permitidos")
+    return valor
+
+
 class AlumnoCreate(BaseModel):
-    nombre: str
-    email: str
-    password: str
-    nivel: str
+    nombre: str = Field(min_length=1, max_length=120)
+    email: EmailStr = Field(max_length=254)
+    password: str = Field(min_length=8, max_length=32)
+    nivel: NivelEnum
 
 class DocenteCreate(BaseModel):
-    nombre: str
-    email: str
-    password: str
+    nombre: str = Field(min_length=1, max_length=120)
+    email: EmailStr = Field(max_length=254)
+    password: str = Field(min_length=8, max_length=32)
 
 class AlumnoLogin(BaseModel):
-    email: str
-    password: str
+    email: EmailStr = Field(max_length=254)
+    password: str = Field(min_length=1, max_length=32)
 
 class DocenteLogin(BaseModel):
-    email: str
-    password: str
+    email: EmailStr = Field(max_length=254)
+    password: str = Field(min_length=1, max_length=32)
 
 class PasswordUpdateRequest(BaseModel):
-    password: str
+    password: str = Field(min_length=8, max_length=32)
 
 class ChatRequest(BaseModel):
-    message: str
-    asignatura: str = "Introduccion_programacion"  # Valor por defecto, se puede cambiar desde el frontend
+    message: str = Field(min_length=1, max_length=settings.MAX_CHAT_MESSAGE_CHARS)
+    asignatura: str = Field(default="Introduccion_programacion", min_length=1, max_length=120)
+
+    @field_validator("asignatura")
+    @classmethod
+    def _asignatura_segura(cls, v: str) -> str:
+        # El slug se usa como nombre de coleccion en Qdrant.
+        return _rechazar_traversal(v)
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr = Field(max_length=254)
 
 class ResetPasswordRequest(BaseModel):
-    token: str
-    new_password: str
+    token: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=32)
 
 class AsignaturaCreate(BaseModel):
-      nombre: str
-      codigo: str
-      tipo: str = "programacion"  # Valor por defecto, se puede cambiar desde el frontend
+      nombre: str = Field(min_length=1, max_length=120)
+      codigo: str = Field(min_length=1, max_length=60)
+      tipo: TipoAsignaturaEnum = TipoAsignaturaEnum.programacion
+
+      @field_validator("nombre")
+      @classmethod
+      def _nombre_seguro(cls, v: str) -> str:
+          # El nombre se convierte en carpeta (data/<slug>) y en nombre de coleccion.
+          return _rechazar_traversal(v)
 
 class MatricularRequest(BaseModel):
-      alumno_email: str
+      alumno_email: EmailStr = Field(max_length=254)
 
 class UnirseAsignaturaRequest(BaseModel):
-      codigo: str
+      codigo: str = Field(min_length=1, max_length=64)
 
 class AlumnoAutorizadoCreate(BaseModel):
-      correo: str
+      correo: EmailStr = Field(max_length=254)
 
 class AlumnoAutorizadoUpdate(BaseModel):
-      correo: str
+      correo: EmailStr = Field(max_length=254)
 
 
 # --- Modelos de response (Swagger) ---
@@ -339,13 +454,14 @@ class DocumentosUploadResponse(BaseModel):
         500: {"description": "Error interno al registrar"},
     }
 )
-async def registrar_alumno(datos: AlumnoCreate):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def registrar_alumno(request: Request, datos: AlumnoCreate):
     if not datos.email.endswith("@um.es"):
        raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
     if not comprobacion_email_alumno(datos.email):
         raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT AUTHORIZED"))
     try:
-        register_alumno(email=datos.email, plain_password=datos.password, nombre=datos.nombre, nivel=datos.nivel)
+        register_alumno(email=datos.email, plain_password=datos.password, nombre=datos.nombre, nivel=datos.nivel.value)
         return {"message": _("REGISTRATION SUCCESS")}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
@@ -363,7 +479,8 @@ async def registrar_alumno(datos: AlumnoCreate):
         500: {"description": "Error interno al registrar"},
     }
 )
-async def registrar_docente(datos: DocenteCreate):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+async def registrar_docente(request: Request, datos: DocenteCreate):
     if not datos.email.endswith("@um.es"):
         raise HTTPException(status_code=400, detail=_("ERROR EMAIL NOT FROM UM"))
     if not comprobacion_email_docente(datos.email):
@@ -386,7 +503,8 @@ async def registrar_docente(datos: DocenteCreate):
         401: {"description": "Credenciales inválidas"},
     }
 )
-def login_alumno(datos: AlumnoLogin, response: Response):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def login_alumno(request: Request, datos: AlumnoLogin, response: Response):
     alumno = authenticate_alumno(datos.email, datos.password)
     if not alumno:
         raise HTTPException(status_code=401, detail=_("ERROR INVALID CREDENTIALS"))
@@ -416,7 +534,8 @@ def login_alumno(datos: AlumnoLogin, response: Response):
         401: {"description": "Credenciales inválidas"},
     }
 )
-def login_docente(datos: DocenteLogin, response: Response):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def login_docente(request: Request, datos: DocenteLogin, response: Response):
     docente = authenticate_docente(datos.email, datos.password)
     if not docente:
         raise HTTPException(status_code=401, detail=_("ERROR INVALID CREDENTIALS"))
@@ -498,7 +617,8 @@ def logout_docente(response: Response):
         500: {"description": "Error interno al actualizar"},
     }
 )
-def actualizar_contraseña(datos: PasswordUpdateRequest, current_user: dict = Depends(get_current_user)):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def actualizar_contraseña(request: Request, datos: PasswordUpdateRequest, current_user: dict = Depends(get_current_user)):
     if len(datos.password) < 8:
         raise HTTPException(status_code=400, detail=_("PASSWORD TOO SHORT"))
     try:
@@ -540,7 +660,8 @@ def eliminar_cuenta(response: Response, current_user: dict = Depends(get_current
         401: {"description": "No autenticado"},
     }
 )
-def chat_endpoint(datos: ChatRequest, current_user: dict = Depends(get_current_user)):
+@limiter.limit(settings.RATE_LIMIT_CHAT)
+def chat_endpoint(request: Request, datos: ChatRequest, current_user: dict = Depends(get_current_user)):
     thread_id = str(current_user["alumno_id"])
     #Resolvemos el tipo de asignatura desde BD (el frontend solo manda el slug).
     #Si la asignatura no existe en BD o no se pasa, usamos "programacion" como default.
@@ -617,7 +738,8 @@ def _send_reset_email(recipient: str, reset_url: str):
     response_model=MessageResponse,
     tags=["auth"],
 )
-def forgot_password(datos: ForgotPasswordRequest):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def forgot_password(request: Request, datos: ForgotPasswordRequest):
     import logging
     # Buscamos primero como alumno; si no existe, probamos como docente.
     rol = None
@@ -652,7 +774,8 @@ def forgot_password(datos: ForgotPasswordRequest):
         500: {"description": "Error interno al actualizar la contraseña"},
     }
 )
-def reset_password(datos: ResetPasswordRequest):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def reset_password(request: Request, datos: ResetPasswordRequest):
     token_data = _reset_tokens.get(datos.token)
     # token_data es (email, rol, expires_at)
     if not token_data or datetime.now() > token_data[2]:
@@ -714,15 +837,17 @@ def crear_asignatura_endpoint(datos: AsignaturaCreate, current_user: dict = Depe
             nombre=datos.nombre,
             codigo=datos.codigo,
             docente_id=current_user["docente_id"],
-            tipo=datos.tipo
+            tipo=datos.tipo.value
         )
-        nombre_capitalizado = datos.nombre.lower().replace(' ', '_')
+        # Usamos el mismo helper de slug que el resto de endpoints (endurecido contra
+        # path traversal) en vez de derivar el nombre de carpeta a mano.
+        slug = _slug_asignatura(datos.nombre)
         #creamos la carpeta de la asiognatura para que el docente pueda meter toda la informacion acerca de la asignatura
-        os.makedirs(DATA_ROOT / nombre_capitalizado, exist_ok=True)
+        os.makedirs(DATA_ROOT / slug, exist_ok=True)
 
         #Tambien creamos las carpetas de teoria y de practicas dentro de la nueva carpeta creada
-        os.makedirs(DATA_ROOT / nombre_capitalizado / "teoria", exist_ok=True)
-        os.makedirs(DATA_ROOT / nombre_capitalizado / "practicas", exist_ok=True) 
+        os.makedirs(DATA_ROOT / slug / "teoria", exist_ok=True)
+        os.makedirs(DATA_ROOT / slug / "practicas", exist_ok=True)
         #Asi lo que haremos sera crear la carpeta con la que persistiremos los documentos de la base de datos  
         return {"id": asignatura.id, "nombre": asignatura.nombre, "codigo": asignatura.codigo, "codigo_invitacion": asignatura.codigo_invitacion, "tipo": asignatura.tipo}
     except ValueError as ve:
@@ -904,7 +1029,9 @@ def obtener_interacciones_docente(alumno_id: int,asignatura_id: int | None = Non
           403: {"description": "No autorizado para esta asignatura"},
       }
   )
+@limiter.limit(settings.RATE_LIMIT_UPLOAD)
 async def import_alumnos_endpoint(
+      request: Request,
       asignatura_id: int,
       #Gracias a esto FastApi recibe un multiPart/form-data con el archivo Excel, y lo valida como un UploadFile, que es un tipo especial de FastApi para manejar archivos subidos por el usuario.
       file: UploadFile = File(...),
@@ -918,15 +1045,21 @@ async def import_alumnos_endpoint(
       if not file.filename or not file.filename.lower().endswith((".xlsx", ".xls")):
           raise HTTPException(status_code=400, detail=_("INVALID FILE FORMAT, EXPECTED EXCEL"))
 
+      #bytes del archivo, lo pasamos a io.BytesIO para que pandas lo lea sin tener que guardarlo en disco.
+      content = await file.read()
+      if len(content) > settings.MAX_EXCEL_BYTES:
+          raise HTTPException(status_code=400, detail=_("FILE TOO LARGE"))
       try:
-          #bytes del archivo, lo pasamos a io.BytesIO para que pandas lo lea sin tener que guardarlo en disco.
-          content = await file.read()
           df = pd.read_excel(io.BytesIO(content))
+          if len(df) > settings.MAX_EXCEL_ROWS:
+              raise HTTPException(status_code=400, detail=_("TOO MANY ROWS"))
           insertados = import_alumnos_autorizados_excel(asignatura_id, df)
           return {
               "insertados": insertados,
               "message": _("IMPORT SUCCESS"),
           }
+      except HTTPException:
+          raise
       except Exception as e:
           raise HTTPException(status_code=500, detail=str(e))
 
@@ -1243,7 +1376,26 @@ def _resolver_asignatura_del_docente(asignatura_id: int, docente_id: int):
     return asignatura
 
 def _slug_asignatura(nombre: str) -> str:
-    return nombre.lower().replace(" ", "_")
+    slug = nombre.strip().lower().replace(" ", "_")
+    # Defensa en profundidad: aunque el modelo ya valida el nombre, este slug se usa
+    # como carpeta (data/<slug>) y como nombre de coleccion en Qdrant, asi que
+    # rechazamos cualquier secuencia que permita salirse de la carpeta.
+    if not slug or any(s in slug for s in _SECUENCIAS_PELIGROSAS):
+        raise HTTPException(status_code=400, detail=_("INVALID ASIGNATURA NAME"))
+    return slug
+
+def _nombre_fichero_seguro(nombre: str) -> str:
+    """Devuelve solo el nombre base del fichero, descartando cualquier ruta.
+
+    Evita path traversal: un nombre como '../../app/main.py' se reduce a 'main.py',
+    asi el fichero siempre cae dentro de la carpeta destino prevista.
+    """
+    # Normalizamos separadores Windows a POSIX antes de quedarnos con el basename,
+    # porque dentro del contenedor (Linux) '\\' no es separador y podria colarse.
+    base = os.path.basename(nombre.replace("\\", "/"))
+    if not base or base in {".", ".."}:
+        raise HTTPException(status_code=400, detail=_("INVALID FILENAME"))
+    return base
 
 
 #Endpoint para subir documentacion del RAG (uno o varios archivos)
@@ -1259,7 +1411,9 @@ def _slug_asignatura(nombre: str) -> str:
         403: {"description": "No autorizado para esta asignatura"},
     }
 )
+@limiter.limit(settings.RATE_LIMIT_UPLOAD)
 async def subir_documentos_endpoint(
+    request: Request,
     asignatura_id: int,
     tipo: str = Form(...),
     files: list[UploadFile] = File(...),
@@ -1281,13 +1435,24 @@ async def subir_documentos_endpoint(
     for f in files:
         if not f.filename:
             continue
-        ext = Path(f.filename).suffix.lower()
+        # Saneamos el nombre ANTES de construir la ruta: descarta cualquier
+        # componente de directorio para impedir path traversal (escribir fuera
+        # de target_dir sobrescribiendo ficheros del contenedor).
+        try:
+            nombre_seguro = _nombre_fichero_seguro(f.filename)
+        except HTTPException:
+            fallos.append(f.filename)
+            continue
+        ext = Path(nombre_seguro).suffix.lower()
         if ext not in SUPPORTED_FORMATS:
             fallos.append(f.filename)
             continue
-        target_path = target_dir / f.filename
+        target_path = target_dir / nombre_seguro
         try:
             content = await f.read()
+            if len(content) > settings.MAX_DOC_BYTES:
+                fallos.append(f.filename)
+                continue
             target_path.write_bytes(content)
             insertados += 1
         except Exception as e:
@@ -1351,8 +1516,11 @@ def eliminar_documento_endpoint(
     if tipo not in TIPOS_DOC_VALIDOS:
         raise HTTPException(status_code=400, detail=_("INVALID DOCUMENT TYPE"))
 
+    # Saneamos `nombre` (viene de query param) para impedir path traversal:
+    # sin esto, nombre='../../algo' permitiria borrar ficheros arbitrarios.
+    nombre_seguro = _nombre_fichero_seguro(nombre)
     slug = _slug_asignatura(asignatura.nombre)
-    target_path = DATA_ROOT / slug / tipo / nombre
+    target_path = DATA_ROOT / slug / tipo / nombre_seguro
     if not target_path.is_file():
         raise HTTPException(status_code=404, detail=_("DOCUMENT NOT FOUND"))
 

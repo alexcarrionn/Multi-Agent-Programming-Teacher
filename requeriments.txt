@@ -25,3 +25,5 @@ watchfiles
 pandas
 python-jose[cryptography]
 python-multipart
+slowapi
+email-validator

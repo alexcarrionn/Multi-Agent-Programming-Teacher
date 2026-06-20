@@ -96,7 +96,25 @@ msgid "PASSWORD UPDATE ERROR"
 msgstr "Ha ocurrido un error a la hora de cambiar la contraseña. Por favor, inténtelo de nuevo"
 
 msgid "PASSWORD TOO SHORT"
-msgstr "La contraseña tiene que te tener un mínimo de 8 carácteres."
+msgstr "La contraseña debe tener al menos 8 caracteres."
+
+msgid "PASSWORD TOO LONG"
+msgstr "La contraseña no puede superar los 32 caracteres."
+
+msgid "EMAIL INVALID"
+msgstr "El correo electrónico no tiene un formato válido."
+
+msgid "INVALID LEVEL"
+msgstr "El nivel seleccionado no es válido."
+
+msgid "INVALID SUBJECT TYPE"
+msgstr "El tipo de asignatura no es válido."
+
+msgid "MESSAGE TOO LONG"
+msgstr "El mensaje es demasiado largo."
+
+msgid "FIELD REQUIRED"
+msgstr "Falta rellenar un campo obligatorio."
 
 msgid "MESSAGE NOT SIGNATURE"
 msgstr "Lo siento, no tengo información sobre ese tema en el material de la asignatura. Solo puedo ayudarte con los contenidos de la asignatura. ¿Tienes alguna duda sobre los temas de la asignatura?"
@@ -115,6 +133,24 @@ msgstr "El enlace no es válido o ha caducado. Solicita uno nuevo."
 
 msgid "PASSWORD RESET SUCCESS"
 msgstr "Contraseña restablecida correctamente."
+
+msgid "TOO MANY REQUESTS"
+msgstr "Demasiadas peticiones. Espera un momento e inténtalo de nuevo."
+
+msgid "INVALID INPUT DATA"
+msgstr "Los datos enviados no son válidos. Revisa el formulario e inténtalo de nuevo."
+
+msgid "INVALID FILENAME"
+msgstr "El nombre del archivo no es válido."
+
+msgid "INVALID ASIGNATURA NAME"
+msgstr "El nombre de la asignatura no es válido."
+
+msgid "FILE TOO LARGE"
+msgstr "El archivo es demasiado grande."
+
+msgid "TOO MANY ROWS"
+msgstr "El archivo tiene demasiadas filas."
 
 msgid "PASSWORD RESET ERROR"
 msgstr "Error al restablecer la contraseña. Inténtalo de nuevo."

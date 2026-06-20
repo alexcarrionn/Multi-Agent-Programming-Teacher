@@ -63,4 +63,33 @@ class Settings:
 
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+    # -- Rate limiting (slowapi) --
+    # Backend de almacenamiento de los contadores. "memory://" es correcto con un
+    # solo proceso uvicorn (caso actual). Si algun dia se arranca con --workers o
+    # varias replicas, cada proceso tendria su propio contador: cambiar a Redis con
+    # "redis://host:6379" SIN tocar codigo, solo el .env.
+    RATE_LIMIT_STORAGE = os.getenv("RATE_LIMIT_STORAGE", "memory://")
+    # Activar/desactivar globalmente el rate limiting (util en tests/dev).
+    RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+    # Formato de "limits": "5/minute", "100/minute", "20/hour". Varios limites a la
+    # vez se separan con ";" (ej. "5/minute;20/hour"). Calibrable sin rebuild.
+    # Red de seguridad global aplicada a TODAS las rutas (por usuario-o-IP).
+    RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "100/minute")
+    # Endpoints sensibles a fuerza bruta / enumeracion / spam de correo.
+    RATE_LIMIT_AUTH = os.getenv("RATE_LIMIT_AUTH", "5/minute;20/hour")
+    # Chat: cada peticion dispara el grafo multi-agente (coste real en tokens LLM).
+    RATE_LIMIT_CHAT = os.getenv("RATE_LIMIT_CHAT", "20/minute")
+    # Subidas de ficheros / formularios de escritura pesados.
+    RATE_LIMIT_UPLOAD = os.getenv("RATE_LIMIT_UPLOAD", "20/minute")
+
+    # -- Limites de validacion de entrada --
+    # Longitud maxima de un mensaje de chat (evita payloads enormes -> coste LLM).
+    MAX_CHAT_MESSAGE_CHARS = int(os.getenv("MAX_CHAT_MESSAGE_CHARS", "4000"))
+    # Tamaño maximo del Excel de alumnos autorizados (bytes). 10 MB por defecto.
+    MAX_EXCEL_BYTES = int(os.getenv("MAX_EXCEL_BYTES", str(10 * 1024 * 1024)))
+    # Numero maximo de filas que se procesan del Excel.
+    MAX_EXCEL_ROWS = int(os.getenv("MAX_EXCEL_ROWS", "5000"))
+    # Tamaño maximo por documento subido al RAG (bytes). Alineado con nginx (50 MB).
+    MAX_DOC_BYTES = int(os.getenv("MAX_DOC_BYTES", str(50 * 1024 * 1024)))
+
 settings = Settings()

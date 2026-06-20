@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 import uuid
 from sqlalchemy import create_engine, func, text
 import io
@@ -69,9 +70,16 @@ def schema_exists():
     engine = create_engine(server_url, echo=False)
     try:
         with engine.connect() as connection:
+            # CREATE DATABASE es DDL: el nombre es un identificador y no se puede
+            # parametrizar con bind params. Aunque MYSQL_DB viene de entorno (no de
+            # usuario), validamos que sea un identificador seguro antes de interpolar
+            # para evitar inyeccion via configuracion.
+            db_name = settings.MYSQL_DB
+            if not re.fullmatch(r"[A-Za-z0-9_]+", db_name or ""):
+                raise ValueError(f"Nombre de base de datos no valido: {db_name!r}")
             #Una vez nos conectamos, comprobamos si la base de datos existe, si no existe la creamos
             connection.execute(
-                text(f"CREATE DATABASE IF NOT EXISTS {settings.MYSQL_DB}")
+                text(f"CREATE DATABASE IF NOT EXISTS `{db_name}`")
             )
             connection.commit()
             return True

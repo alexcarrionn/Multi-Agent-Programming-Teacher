@@ -98,6 +98,24 @@ msgstr "An error occurred while trying to change your password. Please try again
 msgid "PASSWORD TOO SHORT"
 msgstr "The password must be at least 8 characters long."
 
+msgid "PASSWORD TOO LONG"
+msgstr "The password must not exceed 32 characters."
+
+msgid "EMAIL INVALID"
+msgstr "The email address is not in a valid format."
+
+msgid "INVALID LEVEL"
+msgstr "The selected level is not valid."
+
+msgid "INVALID SUBJECT TYPE"
+msgstr "The subject type is not valid."
+
+msgid "MESSAGE TOO LONG"
+msgstr "The message is too long."
+
+msgid "FIELD REQUIRED"
+msgstr "A required field is missing."
+
 msgid "MESSAGE NOT SIGNATURE"
 msgstr "Sorry, I don't have information about that topic in the course material. I can only help you with the contents of the course topics. Do you have any questions about the course topics?"
 
@@ -115,6 +133,24 @@ msgstr "The link is invalid or has expired. Please request a new one."
 
 msgid "PASSWORD RESET SUCCESS"
 msgstr "Password reset successfully."
+
+msgid "TOO MANY REQUESTS"
+msgstr "Too many requests. Please wait a moment and try again."
+
+msgid "INVALID INPUT DATA"
+msgstr "The submitted data is not valid. Please review the form and try again."
+
+msgid "INVALID FILENAME"
+msgstr "The file name is not valid."
+
+msgid "INVALID ASIGNATURA NAME"
+msgstr "The subject name is not valid."
+
+msgid "FILE TOO LARGE"
+msgstr "The file is too large."
+
+msgid "TOO MANY ROWS"
+msgstr "The file has too many rows."
 
 msgid "PASSWORD RESET ERROR"
 msgstr "Error resetting the password. Please try again."

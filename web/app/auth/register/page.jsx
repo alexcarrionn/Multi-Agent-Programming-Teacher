@@ -50,6 +50,11 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (input.password.length < 8) {
+      handleError(t("password_min_chars"));
+      return;
+    }
+
     if (input.password !== input.confirmPassword) {
       handleError(t("passwords_dont_match"));
       return;
