@@ -63,6 +63,18 @@ class Settings:
 
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+    # -- CORS --
+    # Origenes permitidos (lista separada por comas). Por defecto el FRONTEND_URL
+    # (dominio de produccion) mas localhost para desarrollo. Calibrable desde .env
+    # sin tocar codigo: en produccion poner p.ej. "https://tudominio.com".
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys(
+        o.strip()
+        for o in os.getenv(
+            "CORS_ALLOWED_ORIGINS", f"{FRONTEND_URL},http://localhost:3000"
+        ).split(",")
+        if o.strip()
+    ))
+
     # -- Rate limiting (slowapi) --
     # Backend de almacenamiento de los contadores. "memory://" es correcto con un
     # solo proceso uvicorn (caso actual). Si algun dia se arranca con --workers o

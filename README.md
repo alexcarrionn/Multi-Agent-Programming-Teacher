@@ -12,6 +12,8 @@
 - [Requisitos previos](#requisitos-previos)
 - [Instalación y ejecución](#instalación-y-ejecución)
 - [Variables de entorno](#variables-de-entorno)
+- [Seguridad](#seguridad)
+- [Despliegue con HTTPS (nginx)](#despliegue-con-https-nginx)
 - [Sistema multi-tipo de asignatura](#sistema-multi-tipo-de-asignatura)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Modelo de datos](#modelo-de-datos)
@@ -53,6 +55,7 @@
   - Backend: detección automática del idioma del alumno (es/en) y traducción de mensajes con gettext.
   - Frontend: selector manual de idioma en el header (react-i18next) con traducciones en `web/public/locales/{es,en}/common.json`.
 - **Anonimización de cuentas**: la baja de un alumno conserva su progreso académico anonimizando los datos personales.
+- **Capa de seguridad**: rate limiting (slowapi, por usuario-o-IP), validación de entrada (Pydantic v2, anti path-traversal), cabeceras de seguridad (CSP/X-Frame/nosniff), CORS por lista blanca y reverse proxy HTTPS con nginx (ver [Seguridad](#seguridad) y [Despliegue con HTTPS (nginx)](#despliegue-con-https-nginx)).
 - **Documentación OpenAPI** automática en `/docs` (Swagger UI) y `/redoc`.
 
 ---
@@ -112,8 +115,10 @@ FastAPI (main.py)
 | Markdown del chat | react-markdown + remark-gfm |
 | i18n | gettext (backend), react-i18next (frontend) |
 | Comunicación | Axios, Server-Sent Events |
+| Reverse proxy / HTTPS | nginx (TLS, enrutado a api/web, soporte SSE) |
+| Seguridad | slowapi (rate limiting), Pydantic v2 (validación), cabeceras CSP/X-Frame/nosniff |
 | Tests | pytest (backend), Vitest + Testing Library (frontend) |
-| Contenedores | Docker Compose (mysql + api + web) |
+| Contenedores | Docker Compose (mysql + api + web + nginx) |
 
 ---
 
@@ -138,7 +143,7 @@ FastAPI (main.py)
 
 ### Opción A — Docker Compose (recomendado)
 
-Levanta los 3 servicios (`mysql`, `api`, `web`) con una sola orden tras crear el `.env`:
+Levanta los servicios (`mysql`, `api`, `web`, `nginx`) con una sola orden tras crear el `.env`:
 
 ```bash
 git clone <url-del-repositorio>
@@ -150,6 +155,11 @@ docker compose up -d --build
 - **Frontend**: http://localhost:3000
 - **Backend (Swagger)**: http://localhost:8000/docs
 - **MySQL**: expuesto solo a la red interna de compose
+- **nginx (reverse proxy HTTPS)**: https://localhost — ver [Despliegue con HTTPS (nginx)](#despliegue-con-https-nginx)
+
+> ⚠️ El contenedor `nginx` **necesita certificados TLS** en `nginx/ssl/` (`fullchain.pem` + `privatekey.pem`).
+> Sin ellos no arranca (los demás servicios sí). Para desarrollo local puedes generar un certificado
+> autofirmado (ver sección de nginx) o simplemente trabajar contra `http://localhost:3000` directamente.
 
 ### Opción B — Local
 
@@ -228,6 +238,8 @@ BREVO_SENDER_EMAIL=noreply@tu-dominio.com
 BREVO_SENDER_NAME=Codi
 FRONTEND_URL=http://localhost:3000
 #FRONTEND_URL=https://${DNS_DOMAIN}
+# Origenes permitidos por CORS (coma-separados). Si no se define, usa FRONTEND_URL
+# + http://localhost:3000. En produccion: CORS_ALLOWED_ORIGINS=https://tudominio.com
 
 # ─── LangSmith (opcional, trazas) ───────────────────────────────────────────
 LANGSMITH_TRACING=false
@@ -235,17 +247,95 @@ LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 LANGSMITH_API_KEY=tu_langsmith_api_key
 LANGSMITH_PROJECT=mi-proyecto
 
+# ─── Rate limiting (slowapi) ────────────────────────────────────────────────
+# Calibrable sin rebuild. Formato "N/minute", "N/hour"; varios con ";".
+RATE_LIMIT_STORAGE=memory://        # 1 worker; con réplicas usar redis://host:6379
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_DEFAULT=100/minute        # red global a todas las rutas
+RATE_LIMIT_AUTH=5/minute;20/hour     # login/registro/reset (anti fuerza bruta)
+RATE_LIMIT_CHAT=20/minute            # chat (coste real en tokens LLM)
+RATE_LIMIT_UPLOAD=20/minute          # subidas de ficheros
+
+# ─── Límites de validación de entrada ───────────────────────────────────────
+MAX_CHAT_MESSAGE_CHARS=4000
+MAX_EXCEL_BYTES=10485760             # 10 MB
+MAX_EXCEL_ROWS=5000
+MAX_DOC_BYTES=52428800               # 50 MB (alineado con nginx client_max_body_size)
+
 #----------------------------------------------
 #   PUERTOS DEL HOST (mapeo docker-compose)
 #----------------------------------------------
 WEB_PORT=3000
 API_PORT=8000
+HTTP_PORT=80                         # puerto host → nginx:80 (redirige a HTTPS)
+HTTPS_PORT=443                       # puerto host → nginx:443
 
 #----------------------------------------------
 #   DNS DOMAIN
 #----------------------------------------------
 DNS_DOMAIN=
 ```
+
+---
+
+## Seguridad
+
+Codi incorpora una capa de endurecimiento en backend y frontend:
+
+- **Rate limiting (slowapi)**: limita las peticiones con una clave **usuario-o-IP** (por identidad si hay JWT en la cookie; si no, por IP real). Los límites se configuran por `.env` (ver bloque *Rate limiting* arriba) y se aplican a auth, chat y subidas, más una red global por defecto. Al superarse se devuelve **429** con `Retry-After`.
+  - La IP real se toma de `X-Real-IP` (la pone nginx), no del `X-Forwarded-For` crudo que el cliente podría falsear. **Por eso en producción es necesario un proxy (nginx) delante** (ver siguiente sección).
+- **Validación de entrada (Pydantic v2)**: `EmailStr`, longitudes (`Field(min/max)`) y `Enum` para campos cerrados (nivel, tipo de asignatura). Los nombres de asignatura y de fichero se sanean contra **path traversal** antes de usarse como carpeta o colección de Qdrant. Los errores se devuelven como **422** con un mensaje i18n claro por campo.
+- **Límites de tamaño**: longitud máxima del mensaje de chat, y tamaño/filas de los Excel y documentos subidos al RAG (configurables por `.env`).
+- **Cabeceras de seguridad**: CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY` y `Referrer-Policy` tanto en el frontend (Next.js `headers()`) como en el backend (todas las respuestas).
+- **CORS por lista blanca**: solo se reflejan los orígenes de `CORS_ALLOWED_ORIGINS` (por defecto `FRONTEND_URL` + `localhost`), sin comodines.
+- **DDL endurecido**: el nombre de base de datos del `CREATE DATABASE` se valida con regex antes de interpolarse (anti-inyección).
+
+---
+
+## Despliegue con HTTPS (nginx)
+
+En producción, **nginx** actúa como único punto de entrada (reverse proxy + terminación TLS) delante de `api` y `web`:
+
+```
+Navegador ──HTTPS──► nginx:443 ─┬─ /backend/ ──► api:8000
+                                └─ /         ──► web:3000 (Next.js)
+            nginx:80 ──► 301 redirección a HTTPS
+```
+
+nginx también pasa `X-Real-IP` al backend, necesario para que el rate limiting identifique al cliente real (ver [Seguridad](#seguridad)). La configuración vive en `nginx/default.conf.template` (la imagen oficial sustituye `${DNS_DOMAIN}` con envsubst al arrancar) y soporta SSE/streaming del chat (`proxy_buffering off`, `proxy_read_timeout 3600s`).
+
+### Producción (dominio real)
+
+1. **Dominio** → en `.env`:
+   ```env
+   DNS_DOMAIN=tudominio.com
+   FRONTEND_URL=https://tudominio.com
+   # CORS_ALLOWED_ORIGINS se resuelve solo desde FRONTEND_URL; o fíjalo explícito:
+   #CORS_ALLOWED_ORIGINS=https://tudominio.com
+   ```
+2. **Certificados TLS** → coloca en `nginx/ssl/` (gitignored) los certificados reales (p. ej. Let's Encrypt/certbot):
+   - `fullchain.pem`
+   - `privatekey.pem`
+3. **Arranca**:
+   ```bash
+   docker compose up -d --build
+   ```
+   La app queda servida en `https://tudominio.com` (HTTP redirige a HTTPS).
+
+### Pruebas locales con nginx (certificado autofirmado)
+
+Si quieres levantar el stack completo (nginx incluido) en local, genera un certificado autofirmado:
+
+```bash
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/ssl/privatekey.pem \
+  -out nginx/ssl/fullchain.pem \
+  -subj "/CN=localhost"
+```
+
+Luego entra por `https://localhost` (el navegador avisará de certificado no confiable → acéptalo). Alternativamente, omite nginx y trabaja contra `http://localhost:3000` directamente.
+
+> Los puertos del host (`WEB_PORT`, `API_PORT`, `HTTP_PORT`, `HTTPS_PORT`) son configurables por `.env`.
 
 ---
 
@@ -294,10 +384,14 @@ Patrón general: `AGENTE_<AGENTE>_PROMPT_<IDIOMA>[_<MODO>]`. El helper `get_prom
 ```
 Multi-Agent-Programming-Teacher/
 ├── Dockerfile                          # imagen del backend (Python 3.12-slim)
-├── docker-compose.yml                  # mysql + api + web
+├── docker-compose.yml                  # mysql + api + web + nginx
 ├── requeriments.txt
 ├── README.md
 ├── CAMBIOS_SESION_2026-05-21.md        # changelog de la última sesión
+│
+├── nginx/                              # Reverse proxy + HTTPS
+│   ├── default.conf.template           # config (envsubst de ${DNS_DOMAIN} al arrancar)
+│   └── ssl/                            # certificados TLS (gitignored)
 │
 ├── code/                               # Backend Python (FastAPI)
 │   ├── main.py                         # Punto de entrada, rutas, watchers
@@ -334,6 +428,8 @@ Multi-Agent-Programming-Teacher/
 │   │   ├── embeddings.py
 │   │   └── qDrantClient.py
 │   ├── config/                         # Settings desde .env
+│   │   ├── settings.py                 # Config central (rate limit, CORS, límites...)
+│   │   └── rate_limit.py               # Limitador slowapi (clave usuario-o-IP)
 │   ├── auth/                           # JWT y autenticación
 │   ├── tests/                          # pytest: agentes, RAG, BD, workflow
 │   ├── data/                           # Materiales (montado como volumen)

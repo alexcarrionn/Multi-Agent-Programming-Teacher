@@ -54,7 +54,30 @@ services:
     ports:
       # Solo cambia el puerto del host (izquierda). El contenedor sigue en 3000.
       - "${WEB_PORT:-3000}:3000"
-  
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: codi-nginx
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    ports:
+      # Solo cambia el puerto del host (izquierda). El contenedor sigue en 80/443.
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      # El entrypoint de la imagen oficial hace envsubst SOLO de las variables
+      # definidas aqui sobre /etc/nginx/templates/*.template, volcando el resultado
+      # a /etc/nginx/conf.d/. Las variables propias de nginx ($host, $remote_addr,
+      # $scheme...) NO se tocan porque no existen como variables de entorno.
+      DNS_DOMAIN: ${DNS_DOMAIN}
+    volumes:
+      # La plantilla se procesa (envsubst) -> /etc/nginx/conf.d/default.conf
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # Certificados TLS (gitignored). En produccion: fullchain.pem + privatekey.pem reales.
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+
 volumes:
   mysql_data:
   hf_cache:

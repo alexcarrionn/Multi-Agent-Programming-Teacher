@@ -227,12 +227,15 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://showers-performance-chargers-eye.trycloudflare.com",  # ← añadimos el dominio
+        "https://showers-performance-chargers-eye.trycloudflare.com", 
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )"""
+
+### Los origenes permitidos se configuran en .env (CORS_ALLOWED_ORIGINS); por defecto
+### FRONTEND_URL + localhost. En produccion basta con poner el dominio real en .env.
 
 @app.middleware("http")
 async def cors_middleware(request: Request, call_next):
@@ -245,7 +248,10 @@ async def cors_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-    if origin.endswith(".trycloudflare.com") or origin == "http://localhost:3000":
+    # Solo reflejamos el Origin si esta en la lista blanca (settings.CORS_ALLOWED_ORIGINS,
+    # configurable por .env). Asi en produccion solo se acepta el dominio real y en
+    # desarrollo localhost; sin comodines como el viejo *.trycloudflare.com.
+    if origin and origin in settings.CORS_ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "*"
